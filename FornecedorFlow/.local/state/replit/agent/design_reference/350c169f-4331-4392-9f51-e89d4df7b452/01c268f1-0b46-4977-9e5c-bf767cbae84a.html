@@ -1,0 +1,1079 @@
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ValidaFornecedor - Análise Inteligente de Fornecedores</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+    tailwind.config = {
+        theme: {
+            extend: {
+                borderRadius: {
+                    lg: "var(--radius)",
+                    md: "calc(var(--radius) - 2px)",
+                    sm: "calc(var(--radius) - 4px)",
+                },
+                colors: {
+                    background: "var(--background)",
+                    foreground: "var(--foreground)",
+                    card: {
+                        DEFAULT: "var(--card)",
+                        foreground: "var(--card-foreground)",
+                    },
+                    popover: {
+                        DEFAULT: "var(--popover)",
+                        foreground: "var(--popover-foreground)",
+                    },
+                    primary: {
+                        DEFAULT: "var(--primary)",
+                        foreground: "var(--primary-foreground)",
+                    },
+                    secondary: {
+                        DEFAULT: "var(--secondary)",
+                        foreground: "var(--secondary-foreground)",
+                    },
+                    muted: {
+                        DEFAULT: "var(--muted)",
+                        foreground: "var(--muted-foreground)",
+                    },
+                    accent: {
+                        DEFAULT: "var(--accent)",
+                        foreground: "var(--accent-foreground)",
+                    },
+                    destructive: {
+                        DEFAULT: "var(--destructive)",
+                        foreground: "var(--destructive-foreground)",
+                    },
+                    border: "var(--border)",
+                    input: "var(--input)",
+                    ring: "var(--ring)",
+                    success: "var(--success)",
+                    warning: "var(--warning)",
+                },
+                fontFamily: {
+                    sans: ["Inter", "ui-sans-serif", "system-ui"],
+                }
+            },
+        }
+    };
+    </script>
+    <style>
+        :root {
+            --background: hsl(220 14% 96%);
+            --foreground: hsl(220 9% 9%);
+            --card: hsl(0 0% 100%);
+            --card-foreground: hsl(220 9% 9%);
+            --popover: hsl(0 0% 100%);
+            --popover-foreground: hsl(220 9% 9%);
+            --primary: hsl(220 98% 61%);
+            --primary-foreground: hsl(210 20% 98%);
+            --secondary: hsl(220 14% 96%);
+            --secondary-foreground: hsl(220.9 39.3% 11%);
+            --muted: hsl(220 14% 96%);
+            --muted-foreground: hsl(220 8.9% 46.1%);
+            --accent: hsl(220 14% 96%);
+            --accent-foreground: hsl(220.9 39.3% 11%);
+            --destructive: hsl(0 84.2% 60.2%);
+            --destructive-foreground: hsl(210 20% 98%);
+            --border: hsl(220 13% 91%);
+            --input: hsl(220 13% 91%);
+            --ring: hsl(220 98% 61%);
+            --success: hsl(142 76% 36%);
+            --warning: hsl(38 92% 50%);
+            --radius: 8px;
+        }
+
+        .dark {
+            --background: hsl(220 12% 8%);
+            --foreground: hsl(210 20% 98%);
+            --card: hsl(220 13% 12%);
+            --card-foreground: hsl(210 20% 98%);
+            --popover: hsl(220 13% 12%);
+            --popover-foreground: hsl(210 20% 98%);
+            --primary: hsl(220 98% 61%);
+            --primary-foreground: hsl(210 20% 98%);
+            --secondary: hsl(220 13% 15%);
+            --secondary-foreground: hsl(210 20% 98%);
+            --muted: hsl(220 13% 15%);
+            --muted-foreground: hsl(220 8.9% 46.1%);
+            --accent: hsl(220 13% 15%);
+            --accent-foreground: hsl(210 20% 98%);
+            --destructive: hsl(0 62.8% 30.6%);
+            --destructive-foreground: hsl(210 20% 98%);
+            --border: hsl(220 13% 18%);
+            --input: hsl(220 13% 18%);
+            --ring: hsl(220 98% 61%);
+            --success: hsl(142 76% 36%);
+            --warning: hsl(38 92% 50%);
+        }
+
+        body {
+            background-color: var(--background);
+            color: var(--foreground);
+            font-family: 'Inter', sans-serif;
+        }
+
+        .sidebar-transition {
+            transition: margin-left 0.3s ease-in-out;
+        }
+
+        .chart-container {
+            background: linear-gradient(135deg, var(--primary) 0%, hsl(220 98% 71%) 100%);
+        }
+
+        .status-badge-ativo {
+            background-color: hsl(142 76% 36% / 0.1);
+            color: hsl(142 76% 36%);
+        }
+
+        .status-badge-alerta {
+            background-color: hsl(38 92% 50% / 0.1);
+            color: hsl(38 92% 50%);
+        }
+
+        .status-badge-critico {
+            background-color: hsl(0 84.2% 60.2% / 0.1);
+            color: hsl(0 84.2% 60.2%);
+        }
+
+        .score-ring {
+            transform: rotate(-90deg);
+        }
+    </style>
+</head>
+<body class="bg-background text-foreground">
+    <!-- @COMPONENT: Navigation -->
+    <nav class="bg-card border-b border-border fixed w-full top-0 z-50 h-16">
+        <div class="flex items-center justify-between h-full px-6">
+            <!-- Logo e Menu Toggle -->
+            <div class="flex items-center space-x-4">
+                <button id="menu-toggle" class="lg:hidden text-muted-foreground hover:text-foreground">
+                    <i class="fas fa-bars text-xl"></i>
+                </button>
+                <div class="flex items-center space-x-2">
+                    <div class="w-8 h-8 bg-primary rounded-lg flex items-center justify-center">
+                        <i class="fas fa-shield-alt text-primary-foreground text-sm"></i>
+                    </div>
+                    <span class="text-xl font-bold text-foreground hidden sm:block">ValidaFornecedor</span>
+                </div>
+            </div>
+
+            <!-- User Menu -->
+            <div class="flex items-center space-x-4">
+                <button class="text-muted-foreground hover:text-foreground">
+                    <i class="fas fa-bell text-lg"></i>
+                </button>
+                <div class="flex items-center space-x-2 cursor-pointer hover:bg-muted rounded-lg px-2 py-1">
+                    <div class="w-8 h-8 bg-primary rounded-full flex items-center justify-center">
+                        <span class="text-primary-foreground text-sm font-medium" data-bind="user.initials">JS</span>
+                    </div>
+                    <span class="text-sm font-medium hidden sm:block" data-bind="user.name">João Silva</span>
+                    <i class="fas fa-chevron-down text-xs text-muted-foreground"></i>
+                </div>
+            </div>
+        </div>
+    </nav>
+    <!-- @END_COMPONENT: Navigation -->
+
+    <div class="flex min-h-screen pt-16">
+        <!-- @COMPONENT: Sidebar -->
+        <aside id="sidebar" class="w-64 bg-card border-r border-border fixed left-0 top-16 h-[calc(100vh-4rem)] transform -translate-x-full lg:translate-x-0 transition-transform duration-300 ease-in-out z-40">
+            <div class="flex flex-col h-full">
+                <div class="p-6">
+                    <div class="space-y-1">
+                        <a href="#dashboard" class="flex items-center space-x-3 px-3 py-2 rounded-lg bg-primary text-primary-foreground" data-event="click:navigateTo">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <span class="font-medium">Dashboard</span>
+                        </a>
+                        <a href="#validar" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted" data-event="click:navigateTo">
+                            <i class="fas fa-search"></i>
+                            <span class="font-medium">Validar CNPJ</span>
+                        </a>
+                        <a href="#historico" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted" data-event="click:navigateTo">
+                            <i class="fas fa-history"></i>
+                            <span class="font-medium">Histórico</span>
+                        </a>
+                        <a href="#relatorios" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted" data-event="click:navigateTo">
+                            <i class="fas fa-chart-bar"></i>
+                            <span class="font-medium">Relatórios</span>
+                        </a>
+                        <a href="#configuracoes" class="flex items-center space-x-3 px-3 py-2 rounded-lg text-muted-foreground hover:text-foreground hover:bg-muted" data-event="click:navigateTo">
+                            <i class="fas fa-cog"></i>
+                            <span class="font-medium">Configurações</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Plano Atual -->
+                <div class="mt-auto p-6">
+                    <div class="bg-muted rounded-lg p-4">
+                        <div class="flex items-center space-x-2 mb-2">
+                            <i class="fas fa-crown text-warning"></i>
+                            <span class="text-sm font-medium">Plano Pro</span>
+                        </div>
+                        <p class="text-xs text-muted-foreground mb-3">250/1000 consultas utilizadas</p>
+                        <div class="w-full bg-background rounded-full h-2 mb-3">
+                            <div class="bg-primary h-2 rounded-full" style="width: 25%"></div>
+                        </div>
+                        <button class="w-full text-xs bg-primary text-primary-foreground py-2 rounded-md hover:bg-primary/90">
+                            Fazer Upgrade
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </aside>
+        <!-- @END_COMPONENT: Sidebar -->
+
+        <!-- Main Content -->
+        <main class="flex-1 lg:ml-64 sidebar-transition">
+            <!-- @COMPONENT: DashboardContent -->
+            <div id="dashboard-content" class="p-6">
+                <!-- Header -->
+                <div class="mb-8">
+                    <h1 class="text-3xl font-bold text-foreground mb-2">Dashboard</h1>
+                    <p class="text-muted-foreground">Bem-vindo ao seu painel de controle de fornecedores</p>
+                </div>
+
+                <!-- Stats Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+                    <div class="bg-card rounded-lg border border-border p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-muted-foreground">Fornecedores Validados</p>
+                                <p class="text-2xl font-bold text-foreground" data-bind="stats.validated">147</p>
+                            </div>
+                            <div class="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-check-circle text-primary text-xl"></i>
+                            </div>
+                        </div>
+                        <p class="text-xs text-success mt-2">
+                            <i class="fas fa-arrow-up mr-1"></i>
+                            +12% este mês
+                        </p>
+                    </div>
+
+                    <div class="bg-card rounded-lg border border-border p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-muted-foreground">Score Médio</p>
+                                <p class="text-2xl font-bold text-foreground" data-bind="stats.averageScore">85</p>
+                            </div>
+                            <div class="w-12 h-12 bg-success/10 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-star text-success text-xl"></i>
+                            </div>
+                        </div>
+                        <p class="text-xs text-success mt-2">
+                            <i class="fas fa-arrow-up mr-1"></i>
+                            +5 pontos
+                        </p>
+                    </div>
+
+                    <div class="bg-card rounded-lg border border-border p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-muted-foreground">Alertas Ativos</p>
+                                <p class="text-2xl font-bold text-foreground" data-bind="stats.alerts">3</p>
+                            </div>
+                            <div class="w-12 h-12 bg-warning/10 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-exclamation-triangle text-warning text-xl"></i>
+                            </div>
+                        </div>
+                        <p class="text-xs text-warning mt-2">
+                            <i class="fas fa-arrow-down mr-1"></i>
+                            -2 esta semana
+                        </p>
+                    </div>
+
+                    <div class="bg-card rounded-lg border border-border p-6">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <p class="text-sm font-medium text-muted-foreground">Consultas Restantes</p>
+                                <p class="text-2xl font-bold text-foreground" data-bind="stats.remaining">750</p>
+                            </div>
+                            <div class="w-12 h-12 bg-accent/10 rounded-lg flex items-center justify-center">
+                                <i class="fas fa-search text-accent-foreground text-xl"></i>
+                            </div>
+                        </div>
+                        <p class="text-xs text-muted-foreground mt-2">
+                            Renova em 23 dias
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Quick Action -->
+                <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+                    <!-- Validação Rápida -->
+                    <div class="lg:col-span-2 bg-card rounded-lg border border-border p-6">
+                        <h2 class="text-xl font-semibold text-foreground mb-4">Validação Rápida</h2>
+                        <p class="text-muted-foreground mb-6">Insira o CNPJ do fornecedor para análise completa</p>
+                        
+                        <div class="space-y-4">
+                            <div>
+                                <label class="block text-sm font-medium text-foreground mb-2">CNPJ do Fornecedor</label>
+                                <div class="flex space-x-3">
+                                    <input 
+                                        type="text" 
+                                        placeholder="00.000.000/0000-00"
+                                        class="flex-1 px-4 py-3 bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ring text-foreground"
+                                        data-implementation="Add CNPJ mask and validation"
+                                    />
+                                    <button 
+                                        class="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 font-medium"
+                                        data-event="click:validateCNPJ"
+                                        data-implementation="Should validate CNPJ and initiate analysis"
+                                    >
+                                        <i class="fas fa-search mr-2"></i>
+                                        Validar
+                                    </button>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center space-x-4 text-sm text-muted-foreground">
+                                <div class="flex items-center space-x-1">
+                                    <i class="fas fa-clock"></i>
+                                    <span>Análise em ~30 segundos</span>
+                                </div>
+                                <div class="flex items-center space-x-1">
+                                    <i class="fas fa-shield-alt"></i>
+                                    <span>Dados criptografados</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Ações Rápidas -->
+                    <div class="bg-card rounded-lg border border-border p-6">
+                        <h3 class="text-lg font-semibold text-foreground mb-4">Ações Rápidas</h3>
+                        <div class="space-y-3">
+                            <button class="w-full flex items-center space-x-3 p-3 bg-muted hover:bg-muted/80 rounded-lg text-left" data-event="click:bulkValidation">
+                                <i class="fas fa-upload text-primary"></i>
+                                <div>
+                                    <p class="font-medium text-foreground">Validação em Lote</p>
+                                    <p class="text-xs text-muted-foreground">Upload de planilha</p>
+                                </div>
+                            </button>
+                            
+                            <button class="w-full flex items-center space-x-3 p-3 bg-muted hover:bg-muted/80 rounded-lg text-left" data-event="click:exportReports">
+                                <i class="fas fa-download text-primary"></i>
+                                <div>
+                                    <p class="font-medium text-foreground">Exportar Relatórios</p>
+                                    <p class="text-xs text-muted-foreground">PDF e Excel</p>
+                                </div>
+                            </button>
+                            
+                            <button class="w-full flex items-center space-x-3 p-3 bg-muted hover:bg-muted/80 rounded-lg text-left" data-event="click:scheduleAlert">
+                                <i class="fas fa-bell text-primary"></i>
+                                <div>
+                                    <p class="font-medium text-foreground">Agendar Alertas</p>
+                                    <p class="text-xs text-muted-foreground">Monitoramento automático</p>
+                                </div>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Recent Validations & Charts -->
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <!-- Validações Recentes -->
+                    <div class="bg-card rounded-lg border border-border p-6">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-semibold text-foreground">Validações Recentes</h3>
+                            <a href="#historico" class="text-sm text-primary hover:text-primary/80">Ver todas</a>
+                        </div>
+                        
+                        <div class="space-y-4">
+                            <!-- @MAP: recentValidations.map(validation => ( -->
+                            <div class="flex items-center justify-between p-3 bg-muted rounded-lg" data-mock="true">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-building text-primary"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-foreground" data-bind="validation.company">TechCorp Ltda</p>
+                                        <p class="text-sm text-muted-foreground" data-bind="validation.cnpj">12.345.678/0001-90</p>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="status-badge-ativo px-2 py-1 rounded-full text-xs font-medium" data-bind="validation.status">Aprovado</span>
+                                    <p class="text-xs text-muted-foreground mt-1" data-bind="validation.score">Score: 92</p>
+                                </div>
+                            </div>
+                            <!-- @END_MAP )) -->
+                            
+                            <div class="flex items-center justify-between p-3 bg-muted rounded-lg" data-mock="true">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 bg-warning/10 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-building text-warning"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-foreground">Serviços ABC S.A.</p>
+                                        <p class="text-sm text-muted-foreground">98.765.432/0001-10</p>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="status-badge-alerta px-2 py-1 rounded-full text-xs font-medium">Atenção</span>
+                                    <p class="text-xs text-muted-foreground mt-1">Score: 68</p>
+                                </div>
+                            </div>
+                            
+                            <div class="flex items-center justify-between p-3 bg-muted rounded-lg" data-mock="true">
+                                <div class="flex items-center space-x-3">
+                                    <div class="w-10 h-10 bg-destructive/10 rounded-lg flex items-center justify-center">
+                                        <i class="fas fa-building text-destructive"></i>
+                                    </div>
+                                    <div>
+                                        <p class="font-medium text-foreground">IndústRia XYZ Ltda</p>
+                                        <p class="text-sm text-muted-foreground">11.222.333/0001-44</p>
+                                    </div>
+                                </div>
+                                <div class="text-right">
+                                    <span class="status-badge-critico px-2 py-1 rounded-full text-xs font-medium">Crítico</span>
+                                    <p class="text-xs text-muted-foreground mt-1">Score: 23</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Score Distribution Chart -->
+                    <div class="bg-card rounded-lg border border-border p-6">
+                        <h3 class="text-lg font-semibold text-foreground mb-4">Distribuição de Scores</h3>
+                        
+                        <div class="space-y-4">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-3 h-3 bg-success rounded-full"></div>
+                                    <span class="text-sm text-foreground">Alto (80-100)</span>
+                                </div>
+                                <span class="text-sm font-medium text-foreground" data-bind="scoreDistribution.high">68%</span>
+                            </div>
+                            <div class="w-full bg-muted rounded-full h-2">
+                                <div class="bg-success h-2 rounded-full" style="width: 68%"></div>
+                            </div>
+                            
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-3 h-3 bg-warning rounded-full"></div>
+                                    <span class="text-sm text-foreground">Médio (50-79)</span>
+                                </div>
+                                <span class="text-sm font-medium text-foreground" data-bind="scoreDistribution.medium">24%</span>
+                            </div>
+                            <div class="w-full bg-muted rounded-full h-2">
+                                <div class="bg-warning h-2 rounded-full" style="width: 24%"></div>
+                            </div>
+                            
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center space-x-2">
+                                    <div class="w-3 h-3 bg-destructive rounded-full"></div>
+                                    <span class="text-sm text-foreground">Baixo (0-49)</span>
+                                </div>
+                                <span class="text-sm font-medium text-foreground" data-bind="scoreDistribution.low">8%</span>
+                            </div>
+                            <div class="w-full bg-muted rounded-full h-2">
+                                <div class="bg-destructive h-2 rounded-full" style="width: 8%"></div>
+                            </div>
+                        </div>
+
+                        <div class="mt-6 p-4 bg-muted rounded-lg">
+                            <div class="flex items-center space-x-2">
+                                <i class="fas fa-lightbulb text-primary"></i>
+                                <span class="text-sm font-medium text-foreground">Insight</span>
+                            </div>
+                            <p class="text-sm text-muted-foreground mt-1">
+                                A maioria dos seus fornecedores possui alta confiabilidade. Continue monitorando aqueles com scores mais baixos.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- @END_COMPONENT: DashboardContent -->
+
+            <!-- @COMPONENT: ValidationContent -->
+            <div id="validation-content" class="p-6 hidden">
+                <div class="mb-8">
+                    <h1 class="text-3xl font-bold text-foreground mb-2">Validar Fornecedor</h1>
+                    <p class="text-muted-foreground">Análise completa de fornecedores através do CNPJ</p>
+                </div>
+
+                <!-- Validation Form -->
+                <div class="bg-card rounded-lg border border-border p-8 mb-8">
+                    <div class="max-w-2xl mx-auto">
+                        <div class="text-center mb-8">
+                            <div class="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <i class="fas fa-search text-primary text-2xl"></i>
+                            </div>
+                            <h2 class="text-2xl font-bold text-foreground mb-2">Insira o CNPJ do Fornecedor</h2>
+                            <p class="text-muted-foreground">Nossa IA fará uma varredura cruzada de dados, gerando um relatório detalhado.</p>
+                        </div>
+
+                        <div class="space-y-6">
+                            <div>
+                                <label class="block text-sm font-medium text-foreground mb-2">CNPJ</label>
+                                <input 
+                                    type="text" 
+                                    placeholder="00.000.000/0000-00"
+                                    class="w-full px-4 py-4 bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ring text-foreground text-lg text-center"
+                                    data-implementation="Add CNPJ mask and real-time validation"
+                                />
+                            </div>
+
+                            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <label class="block text-sm font-medium text-foreground mb-2">Nome do Fornecedor (Opcional)</label>
+                                    <input 
+                                        type="text" 
+                                        placeholder="Ex: TechCorp Ltda"
+                                        class="w-full px-4 py-3 bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ring text-foreground"
+                                    />
+                                </div>
+                                <div>
+                                    <label class="block text-sm font-medium text-foreground mb-2">Categoria</label>
+                                    <select class="w-full px-4 py-3 bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ring text-foreground">
+                                        <option>Selecione uma categoria</option>
+                                        <option>Tecnologia</option>
+                                        <option>Serviços</option>
+                                        <option>Indústria</option>
+                                        <option>Comércio</option>
+                                        <option>Consultoria</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <button 
+                                class="w-full py-4 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90 font-semibold text-lg"
+                                data-event="click:startValidation"
+                                data-implementation="Should validate CNPJ format, initiate API calls, and show loading state"
+                            >
+                                <i class="fas fa-play mr-2"></i>
+                                Iniciar Análise Completa
+                            </button>
+
+                            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-center text-sm text-muted-foreground">
+                                <div>
+                                    <i class="fas fa-certificate text-primary mb-1"></i>
+                                    <p>Status Cadastral</p>
+                                </div>
+                                <div>
+                                    <i class="fas fa-chart-line text-primary mb-1"></i>
+                                    <p>Saúde Financeira</p>
+                                </div>
+                                <div>
+                                    <i class="fas fa-file-check text-primary mb-1"></i>
+                                    <p>Certidões</p>
+                                </div>
+                                <div>
+                                    <i class="fas fa-users text-primary mb-1"></i>
+                                    <p>Estrutura Societária</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Analysis Results (Hidden by default, shown after validation) -->
+                <div id="analysis-results" class="hidden">
+                    <!-- Score Circle -->
+                    <div class="bg-card rounded-lg border border-border p-8 mb-6">
+                        <div class="flex flex-col lg:flex-row items-center lg:items-start space-y-6 lg:space-y-0 lg:space-x-8">
+                            <!-- Score Visualization -->
+                            <div class="flex flex-col items-center">
+                                <div class="relative w-32 h-32">
+                                    <svg class="w-32 h-32 score-ring" viewBox="0 0 36 36">
+                                        <path
+                                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                            fill="none"
+                                            stroke="var(--muted)"
+                                            stroke-width="2"
+                                        />
+                                        <path
+                                            d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
+                                            fill="none"
+                                            stroke="var(--primary)"
+                                            stroke-width="2"
+                                            stroke-dasharray="85, 100"
+                                            data-bind="score.percentage"
+                                            data-implementation="Animate stroke-dasharray based on score"
+                                        />
+                                    </svg>
+                                    <div class="absolute inset-0 flex items-center justify-center">
+                                        <div class="text-center">
+                                            <span class="text-3xl font-bold text-foreground" data-bind="score.value">85</span>
+                                            <p class="text-xs text-muted-foreground">Score</p>
+                                        </div>
+                                    </div>
+                                </div>
+                                <span class="status-badge-ativo px-3 py-1 rounded-full text-sm font-medium mt-2" data-bind="score.classification">CONFIÁVEL</span>
+                            </div>
+
+                            <!-- Company Info -->
+                            <div class="flex-1">
+                                <div class="mb-4">
+                                    <h2 class="text-2xl font-bold text-foreground" data-bind="company.name" data-mock="true">TechCorp Soluções Ltda</h2>
+                                    <p class="text-muted-foreground" data-bind="company.cnpj" data-mock="true">12.345.678/0001-90</p>
+                                </div>
+
+                                <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div>
+                                        <p class="text-sm text-muted-foreground">Status</p>
+                                        <p class="font-medium text-foreground" data-bind="company.status" data-mock="true">ATIVA</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-muted-foreground">Situação</p>
+                                        <p class="font-medium text-foreground" data-bind="company.situation" data-mock="true">REGULAR</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-muted-foreground">Porte</p>
+                                        <p class="font-medium text-foreground" data-bind="company.size" data-mock="true">MÉDIA</p>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Actions -->
+                            <div class="flex flex-col space-y-2">
+                                <button class="px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90" data-event="click:exportPDF">
+                                    <i class="fas fa-download mr-2"></i>
+                                    Exportar PDF
+                                </button>
+                                <button class="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80" data-event="click:scheduleMonitoring">
+                                    <i class="fas fa-bell mr-2"></i>
+                                    Monitorar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Detailed Analysis -->
+                    <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                        <!-- Status Cadastral -->
+                        <div class="bg-card rounded-lg border border-border p-6">
+                            <h3 class="text-lg font-semibold text-foreground mb-4 flex items-center">
+                                <i class="fas fa-certificate text-primary mr-2"></i>
+                                Status Cadastral
+                            </h3>
+                            <div class="space-y-3" data-mock="true">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-muted-foreground">Situação RF</span>
+                                    <span class="status-badge-ativo px-2 py-1 rounded-full text-xs">ATIVA</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-muted-foreground">Data de Abertura</span>
+                                    <span class="text-sm text-foreground">15/03/2018</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-muted-foreground">CNAE Principal</span>
+                                    <span class="text-sm text-foreground">6201-5/00</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-muted-foreground">Capital Social</span>
+                                    <span class="text-sm text-foreground">R$ 500.000,00</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Saúde Financeira -->
+                        <div class="bg-card rounded-lg border border-border p-6">
+                            <h3 class="text-lg font-semibold text-foreground mb-4 flex items-center">
+                                <i class="fas fa-chart-line text-primary mr-2"></i>
+                                Saúde Financeira
+                            </h3>
+                            <div class="space-y-3" data-mock="true">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-muted-foreground">Protestos</span>
+                                    <span class="status-badge-ativo px-2 py-1 rounded-full text-xs">NENHUM</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-muted-foreground">Falências</span>
+                                    <span class="status-badge-ativo px-2 py-1 rounded-full text-xs">NENHUMA</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-muted-foreground">Recuperação Judicial</span>
+                                    <span class="status-badge-ativo px-2 py-1 rounded-full text-xs">NÃO</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-muted-foreground">Score Serasa</span>
+                                    <span class="text-sm text-foreground">890/1000</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Certidões -->
+                        <div class="bg-card rounded-lg border border-border p-6">
+                            <h3 class="text-lg font-semibold text-foreground mb-4 flex items-center">
+                                <i class="fas fa-file-check text-primary mr-2"></i>
+                                Certidões Negativas
+                            </h3>
+                            <div class="space-y-3" data-mock="true">
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-muted-foreground">Federal</span>
+                                    <span class="status-badge-ativo px-2 py-1 rounded-full text-xs">VÁLIDA</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-muted-foreground">Estadual</span>
+                                    <span class="status-badge-ativo px-2 py-1 rounded-full text-xs">VÁLIDA</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-muted-foreground">Municipal</span>
+                                    <span class="status-badge-alerta px-2 py-1 rounded-full text-xs">VENCE EM 10 DIAS</span>
+                                </div>
+                                <div class="flex justify-between items-center">
+                                    <span class="text-sm text-muted-foreground">Trabalhista</span>
+                                    <span class="status-badge-ativo px-2 py-1 rounded-full text-xs">VÁLIDA</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Estrutura Societária -->
+                        <div class="bg-card rounded-lg border border-border p-6">
+                            <h3 class="text-lg font-semibold text-foreground mb-4 flex items-center">
+                                <i class="fas fa-users text-primary mr-2"></i>
+                                Estrutura Societária
+                            </h3>
+                            <div class="space-y-3" data-mock="true">
+                                <div class="p-3 bg-muted rounded-lg">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <p class="font-medium text-foreground">João Silva</p>
+                                            <p class="text-sm text-muted-foreground">CPF: ***123.456-**</p>
+                                        </div>
+                                        <span class="text-sm font-medium text-foreground">80%</span>
+                                    </div>
+                                    <p class="text-xs text-muted-foreground mt-1">Administrador</p>
+                                </div>
+                                <div class="p-3 bg-muted rounded-lg">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <p class="font-medium text-foreground">Maria Santos</p>
+                                            <p class="text-sm text-muted-foreground">CPF: ***987.654-**</p>
+                                        </div>
+                                        <span class="text-sm font-medium text-foreground">20%</span>
+                                    </div>
+                                    <p class="text-xs text-muted-foreground mt-1">Sócia</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- @END_COMPONENT: ValidationContent -->
+
+            <!-- @COMPONENT: HistoryContent -->
+            <div id="history-content" class="p-6 hidden">
+                <div class="mb-8">
+                    <h1 class="text-3xl font-bold text-foreground mb-2">Histórico de Validações</h1>
+                    <p class="text-muted-foreground">Acompanhe todas as validações realizadas e seus status</p>
+                </div>
+
+                <!-- Filters and Search -->
+                <div class="bg-card rounded-lg border border-border p-6 mb-6">
+                    <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div>
+                            <label class="block text-sm font-medium text-foreground mb-2">Buscar</label>
+                            <input 
+                                type="text" 
+                                placeholder="CNPJ ou Razão Social"
+                                class="w-full px-3 py-2 bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ring text-foreground"
+                            />
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-foreground mb-2">Status</label>
+                            <select class="w-full px-3 py-2 bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ring text-foreground">
+                                <option>Todos os Status</option>
+                                <option>Aprovado</option>
+                                <option>Atenção</option>
+                                <option>Crítico</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-foreground mb-2">Período</label>
+                            <select class="w-full px-3 py-2 bg-input border border-border rounded-lg focus:outline-none focus:ring-2 focus:ring-ring text-foreground">
+                                <option>Últimos 30 dias</option>
+                                <option>Últimos 60 dias</option>
+                                <option>Últimos 90 dias</option>
+                                <option>Último ano</option>
+                            </select>
+                        </div>
+                        <div class="flex items-end">
+                            <button class="w-full px-4 py-2 bg-primary text-primary-foreground rounded-lg hover:bg-primary/90">
+                                <i class="fas fa-search mr-2"></i>
+                                Filtrar
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Validations Table -->
+                <div class="bg-card rounded-lg border border-border overflow-hidden">
+                    <div class="p-6 border-b border-border">
+                        <div class="flex items-center justify-between">
+                            <h3 class="text-lg font-semibold text-foreground">Validações Realizadas</h3>
+                            <button class="px-4 py-2 bg-secondary text-secondary-foreground rounded-lg hover:bg-secondary/80">
+                                <i class="fas fa-download mr-2"></i>
+                                Exportar
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full">
+                            <thead class="bg-muted">
+                                <tr>
+                                    <th class="text-left p-4 text-sm font-medium text-muted-foreground">Empresa</th>
+                                    <th class="text-left p-4 text-sm font-medium text-muted-foreground">CNPJ</th>
+                                    <th class="text-left p-4 text-sm font-medium text-muted-foreground">Score</th>
+                                    <th class="text-left p-4 text-sm font-medium text-muted-foreground">Status</th>
+                                    <th class="text-left p-4 text-sm font-medium text-muted-foreground">Data</th>
+                                    <th class="text-left p-4 text-sm font-medium text-muted-foreground">Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody class="divide-y divide-border" data-mock="true">
+                                <!-- @MAP: validationHistory.map(validation => ( -->
+                                <tr class="hover:bg-muted/50">
+                                    <td class="p-4">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center">
+                                                <i class="fas fa-building text-primary text-sm"></i>
+                                            </div>
+                                            <div>
+                                                <p class="font-medium text-foreground" data-bind="validation.company">TechCorp Soluções Ltda</p>
+                                                <p class="text-xs text-muted-foreground" data-bind="validation.category">Tecnologia</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="p-4">
+                                        <span class="font-mono text-sm text-foreground" data-bind="validation.cnpj">12.345.678/0001-90</span>
+                                    </td>
+                                    <td class="p-4">
+                                        <div class="flex items-center space-x-2">
+                                            <span class="text-2xl font-bold text-foreground" data-bind="validation.score">92</span>
+                                            <div class="w-12 h-2 bg-muted rounded-full">
+                                                <div class="w-full h-2 bg-success rounded-full" data-implementation="Width should be calculated based on score"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="p-4">
+                                        <span class="status-badge-ativo px-2 py-1 rounded-full text-xs font-medium" data-bind="validation.status">Aprovado</span>
+                                    </td>
+                                    <td class="p-4">
+                                        <span class="text-sm text-foreground" data-bind="validation.date">15/01/2024</span>
+                                    </td>
+                                    <td class="p-4">
+                                        <div class="flex items-center space-x-2">
+                                            <button class="p-1 text-primary hover:text-primary/80" data-event="click:viewReport">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button class="p-1 text-primary hover:text-primary/80" data-event="click:downloadPDF">
+                                                <i class="fas fa-download"></i>
+                                            </button>
+                                            <button class="p-1 text-warning hover:text-warning/80" data-event="click:refreshValidation">
+                                                <i class="fas fa-sync-alt"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                <!-- @END_MAP )) -->
+                                
+                                <tr class="hover:bg-muted/50">
+                                    <td class="p-4">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-8 h-8 bg-warning/10 rounded-lg flex items-center justify-center">
+                                                <i class="fas fa-building text-warning text-sm"></i>
+                                            </div>
+                                            <div>
+                                                <p class="font-medium text-foreground">Serviços ABC S.A.</p>
+                                                <p class="text-xs text-muted-foreground">Serviços</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="p-4">
+                                        <span class="font-mono text-sm text-foreground">98.765.432/0001-10</span>
+                                    </td>
+                                    <td class="p-4">
+                                        <div class="flex items-center space-x-2">
+                                            <span class="text-2xl font-bold text-foreground">68</span>
+                                            <div class="w-12 h-2 bg-muted rounded-full">
+                                                <div class="w-2/3 h-2 bg-warning rounded-full"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="p-4">
+                                        <span class="status-badge-alerta px-2 py-1 rounded-full text-xs font-medium">Atenção</span>
+                                    </td>
+                                    <td class="p-4">
+                                        <span class="text-sm text-foreground">12/01/2024</span>
+                                    </td>
+                                    <td class="p-4">
+                                        <div class="flex items-center space-x-2">
+                                            <button class="p-1 text-primary hover:text-primary/80">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button class="p-1 text-primary hover:text-primary/80">
+                                                <i class="fas fa-download"></i>
+                                            </button>
+                                            <button class="p-1 text-warning hover:text-warning/80">
+                                                <i class="fas fa-sync-alt"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                                
+                                <tr class="hover:bg-muted/50">
+                                    <td class="p-4">
+                                        <div class="flex items-center space-x-3">
+                                            <div class="w-8 h-8 bg-destructive/10 rounded-lg flex items-center justify-center">
+                                                <i class="fas fa-building text-destructive text-sm"></i>
+                                            </div>
+                                            <div>
+                                                <p class="font-medium text-foreground">Indústria XYZ Ltda</p>
+                                                <p class="text-xs text-muted-foreground">Indústria</p>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="p-4">
+                                        <span class="font-mono text-sm text-foreground">11.222.333/0001-44</span>
+                                    </td>
+                                    <td class="p-4">
+                                        <div class="flex items-center space-x-2">
+                                            <span class="text-2xl font-bold text-foreground">23</span>
+                                            <div class="w-12 h-2 bg-muted rounded-full">
+                                                <div class="w-1/4 h-2 bg-destructive rounded-full"></div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="p-4">
+                                        <span class="status-badge-critico px-2 py-1 rounded-full text-xs font-medium">Crítico</span>
+                                    </td>
+                                    <td class="p-4">
+                                        <span class="text-sm text-foreground">08/01/2024</span>
+                                    </td>
+                                    <td class="p-4">
+                                        <div class="flex items-center space-x-2">
+                                            <button class="p-1 text-primary hover:text-primary/80">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            <button class="p-1 text-primary hover:text-primary/80">
+                                                <i class="fas fa-download"></i>
+                                            </button>
+                                            <button class="p-1 text-warning hover:text-warning/80">
+                                                <i class="fas fa-sync-alt"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    
+                    <!-- Pagination -->
+                    <div class="p-4 border-t border-border">
+                        <div class="flex items-center justify-between">
+                            <p class="text-sm text-muted-foreground">
+                                Mostrando 1-10 de 47 resultados
+                            </p>
+                            <div class="flex items-center space-x-2">
+                                <button class="px-3 py-1 border border-border rounded text-sm hover:bg-muted">Anterior</button>
+                                <button class="px-3 py-1 bg-primary text-primary-foreground rounded text-sm">1</button>
+                                <button class="px-3 py-1 border border-border rounded text-sm hover:bg-muted">2</button>
+                                <button class="px-3 py-1 border border-border rounded text-sm hover:bg-muted">3</button>
+                                <button class="px-3 py-1 border border-border rounded text-sm hover:bg-muted">Próximo</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- @END_COMPONENT: HistoryContent -->
+        </main>
+    </div>
+
+    <!-- Overlay for mobile sidebar -->
+    <div id="sidebar-overlay" class="fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden hidden"></div>
+
+    <script>
+        // TODO: Implement proper React state management and routing
+        
+        (function() {
+            // Mobile menu toggle
+            const menuToggle = document.getElementById('menu-toggle');
+            const sidebar = document.getElementById('sidebar');
+            const sidebarOverlay = document.getElementById('sidebar-overlay');
+            
+            menuToggle?.addEventListener('click', function() {
+                sidebar.classList.toggle('-translate-x-full');
+                sidebarOverlay.classList.toggle('hidden');
+            });
+            
+            sidebarOverlay?.addEventListener('click', function() {
+                sidebar.classList.add('-translate-x-full');
+                sidebarOverlay.classList.add('hidden');
+            });
+
+            // Navigation
+            const navigationLinks = document.querySelectorAll('a[data-event="click:navigateTo"]');
+            const contentSections = {
+                '#dashboard': document.getElementById('dashboard-content'),
+                '#validar': document.getElementById('validation-content'),
+                '#historico': document.getElementById('history-content')
+            };
+
+            navigationLinks.forEach(link => {
+                link.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    
+                    // Update active navigation
+                    navigationLinks.forEach(l => {
+                        l.classList.remove('bg-primary', 'text-primary-foreground');
+                        l.classList.add('text-muted-foreground', 'hover:text-foreground', 'hover:bg-muted');
+                    });
+                    
+                    this.classList.add('bg-primary', 'text-primary-foreground');
+                    this.classList.remove('text-muted-foreground', 'hover:text-foreground', 'hover:bg-muted');
+                    
+                    // Show/hide content sections
+                    const targetHref = this.getAttribute('href');
+                    Object.values(contentSections).forEach(section => {
+                        section?.classList.add('hidden');
+                    });
+                    
+                    if (contentSections[targetHref]) {
+                        contentSections[targetHref].classList.remove('hidden');
+                    }
+                    
+                    // Close mobile sidebar
+                    sidebar.classList.add('-translate-x-full');
+                    sidebarOverlay.classList.add('hidden');
+                });
+            });
+
+            // Form validations and interactions placeholder
+            // TODO: Implement CNPJ validation, API integration, form handling
+            
+            // Example of how validation would work:
+            const validateButton = document.querySelector('[data-event="click:startValidation"]');
+            validateButton?.addEventListener('click', function() {
+                // TODO: Implement CNPJ validation logic
+                // TODO: Show loading state
+                // TODO: Make API calls to data providers
+                // TODO: Process and display results
+                console.log('Validation would start here');
+                
+                // For demo purposes, show the results section
+                const resultsSection = document.getElementById('analysis-results');
+                if (resultsSection) {
+                    resultsSection.classList.remove('hidden');
+                    resultsSection.scrollIntoView({ behavior: 'smooth' });
+                }
+            });
+
+            // Quick validation from dashboard
+            const quickValidateButton = document.querySelector('[data-event="click:validateCNPJ"]');
+            quickValidateButton?.addEventListener('click', function() {
+                // TODO: Same validation logic as above
+                console.log('Quick validation would start here');
+            });
+
+            // TODO: Implement export functionality, monitoring setup, bulk validation, etc.
+            
+        })();
+    </script>
+</body>
+</html>

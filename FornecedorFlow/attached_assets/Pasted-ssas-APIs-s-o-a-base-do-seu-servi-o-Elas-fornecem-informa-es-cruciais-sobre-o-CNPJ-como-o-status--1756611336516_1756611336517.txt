@@ -1,0 +1,21 @@
+ssas APIs são a base do seu serviço. Elas fornecem informações cruciais sobre o CNPJ, como o status na Receita Federal, quadro de sócios, endereço e histórico de atividades.
+
+CNPJ.ws: Uma das mais populares e fáceis de usar. Oferece uma API completa e bem documentada para consulta de CNPJs. Com uma única requisição, você obtém dados como razão social, nome fantasia, status da empresa, dados dos sócios e atividades econômicas (CNAE).
+
+ReceitaWS: Conhecida por sua simplicidade e confiabilidade. É uma excelente alternativa para obter informações básicas e detalhadas de qualquer CNPJ.
+
+2. APIs de Análise de Risco e Conformidade
+Essas APIs são o que transformam seu SaaS em uma ferramenta de inteligência de negócios. Elas buscam por pendências financeiras, protestos e processos judiciais.
+
+Codilo: Focada em dados jurídicos. A API da Codilo permite pesquisar e monitorar processos judiciais em todos os tribunais do Brasil, usando o CNPJ como parâmetro. Isso é essencial para identificar riscos de falência ou ações contra o fornecedor.
+
+DataSutra: Oferece uma gama completa de APIs para validação de dados, incluindo informações financeiras e de compliance. Você pode usar a API deles para verificar a saúde financeira de um fornecedor, pesquisando por protestos e pendências.
+
+Neoway: Uma das maiores empresas de Big Data e Analytics no Brasil. Embora seja uma solução mais robusta e de nível corporativo, suas APIs de dados de empresas e risco financeiro são extremamente completas. Pode ser uma opção para escalar seu serviço no futuro.
+
+3. APIs de Verificação de Listas Restritivas
+Para clientes que precisam de um nível de conformidade mais elevado (especialmente em setores regulados), essas APIs são indispensáveis para verificar se o fornecedor está em alguma lista de sanções.
+
+Kriptos: Oferece uma API para pesquisa em diversas listas de sanções nacionais e internacionais (como a Lista do BACEN e OFAC), listas de Pessoas Politicamente Expostas (PPE) e outras listas de restrição. Isso adiciona uma camada extra de segurança para seu cliente.
+
+Esses provedores de API já fizeram o trabalho de coleta de dados de diversas fontes governamentais, como Receita Federal, tribunais, cartórios e outras agências. Sua tarefa é integrar-se a essas APIs e usar os dados para construir a lógica do seu negócio, como o cálculo do score de risco e o monitoramento contínuo dos fornecedores.

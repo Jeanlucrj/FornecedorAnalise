@@ -13,11 +13,11 @@ import { isUnauthorizedError } from "@/lib/authUtils";
 // Mapear códigos CNAE para atividades econômicas
 const getCnaeDescription = (cnaeCode: string): string => {
   if (!cnaeCode) return 'Atividade não informada';
-  
+
   // Remove pontos e hífens do código CNAE
   const cleanCode = cnaeCode.replace(/[.-]/g, '');
   const mainCode = cleanCode.substring(0, 2);
-  
+
   const cnaeMapping: { [key: string]: string } = {
     '01': 'Agricultura, Pecuária e Serviços',
     '02': 'Produção Florestal',
@@ -107,7 +107,7 @@ const getCnaeDescription = (cnaeCode: string): string => {
     '97': 'Serviços Domésticos',
     '99': 'Organismos Internacionais'
   };
-  
+
   return cnaeMapping[mainCode] || 'Atividade Comercial';
 };
 
@@ -129,7 +129,7 @@ export default function Reports() {
       variant: "destructive",
     });
     setTimeout(() => {
-      window.location.href = "/api/login";
+      window.location.href = "/";
     }, 500);
   }
 
@@ -144,21 +144,52 @@ export default function Reports() {
     }
 
     toast({
-      title: "Exportação Iniciada",
-      description: "Gerando relatório consolidado...",
+      title: "Gerando PDF Consolidado...",
+      description: "Aguarde enquanto o relatório é gerado.",
     });
 
-    // In a real implementation, this would generate a consolidated report
-    setTimeout(() => {
-      toast({
-        title: "Relatório Exportado",
-        description: "Relatório consolidado baixado com sucesso!",
+    try {
+      const params = analysisType !== 'all' ? `?analysisType=${analysisType}` : '';
+      const response = await fetch(`/api/validations/consolidated-export${params}`, {
+        method: 'GET',
+        credentials: 'include',
       });
-    }, 2000);
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      const date = new Date().toISOString().split('T')[0];
+      link.download = `relatorio-consolidado-fornecedores-${date}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+
+      toast({
+        title: "PDF Consolidado Baixado!",
+        description: "Relatório com todos os fornecedores gerado com sucesso.",
+      });
+    } catch (error) {
+      console.error('Error downloading consolidated PDF:', error);
+      toast({
+        title: "Erro na Exportação",
+        description: "Não foi possível gerar o relatório consolidado.",
+        variant: "destructive",
+      });
+    }
   };
 
   const handleExportSingle = async (validationId: string, companyName: string) => {
     try {
+      toast({
+        title: "Gerando PDF...",
+        description: `Aguarde enquanto o relatório de ${companyName} é gerado.`,
+      });
       await downloadPDF(validationId, companyName);
       toast({
         title: "PDF Exportado",
@@ -174,7 +205,7 @@ export default function Reports() {
   };
 
   const handleViewDetail = (validationId: string, isQuickAnalysis: boolean) => {
-    const url = isQuickAnalysis 
+    const url = isQuickAnalysis
       ? `/validation/${validationId}?view=quick`
       : `/validation/${validationId}`;
     window.location.href = url;
@@ -225,7 +256,7 @@ export default function Reports() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <Button 
+          <Button
             onClick={() => window.location.href = '/'}
             data-testid="button-back-home"
           >
@@ -239,7 +270,7 @@ export default function Reports() {
             </p>
           </div>
         </div>
-        <Button 
+        <Button
           onClick={handleExportAll}
           disabled={!validations || validations.length === 0}
           data-testid="button-export-all-reports"
@@ -356,7 +387,7 @@ export default function Reports() {
             <span>Relatórios Disponíveis</span>
           </CardTitle>
         </CardHeader>
-        
+
         <CardContent>
           <div className="overflow-x-auto">
             <table className="w-full">
@@ -396,103 +427,100 @@ export default function Reports() {
                     .map((item: any, index: number) => {
                       const isQuick = isQuickAnalysis(item);
                       return (
-                    <tr 
-                      key={item.validation.id} 
-                      className="hover:bg-muted/50 transition-colors"
-                      data-testid={`report-row-${index}`}
-                    >
-                      <td className="p-4">
-                        <div className="flex items-center space-x-3">
-                          <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                            item.validation.status === 'approved' ? 'bg-primary/10' :
-                            item.validation.status === 'attention' ? 'bg-warning/10' :
-                            'bg-destructive/10'
-                          }`}>
-                            <Building className={`w-4 h-4 ${
-                              item.validation.status === 'approved' ? 'text-primary' :
-                              item.validation.status === 'attention' ? 'text-warning' :
-                              'text-destructive'
-                            }`} />
-                          </div>
-                          <div>
-                            <p className="font-medium text-foreground">
-                              {item.supplier?.companyName || 'Nome não disponível'}
-                            </p>
-                            <p className="text-xs text-muted-foreground">
-                              {getCnaeDescription(item.supplier?.cnaeCode)}
-                            </p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center space-x-2">
-                          {isQuick ? (
-                            <div className="flex items-center space-x-1 bg-blue-50 text-blue-700 px-2 py-1 rounded-full">
-                              <Zap className="w-3 h-3" />
-                              <span className="text-xs font-medium">Rápida</span>
+                        <tr
+                          key={item.validation.id}
+                          className="hover:bg-muted/50 transition-colors"
+                          data-testid={`report-row-${index}`}
+                        >
+                          <td className="p-4">
+                            <div className="flex items-center space-x-3">
+                              <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${item.validation.status === 'approved' ? 'bg-primary/10' :
+                                item.validation.status === 'attention' ? 'bg-warning/10' :
+                                  'bg-destructive/10'
+                                }`}>
+                                <Building className={`w-4 h-4 ${item.validation.status === 'approved' ? 'text-primary' :
+                                  item.validation.status === 'attention' ? 'text-warning' :
+                                    'text-destructive'
+                                  }`} />
+                              </div>
+                              <div>
+                                <p className="font-medium text-foreground">
+                                  {item.supplier?.companyName || 'Nome não disponível'}
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {getCnaeDescription(item.supplier?.cnaeCode)}
+                                </p>
+                              </div>
                             </div>
-                          ) : (
-                            <div className="flex items-center space-x-1 bg-green-50 text-green-700 px-2 py-1 rounded-full">
-                              <Clock className="w-3 h-3" />
-                              <span className="text-xs font-medium">Completa</span>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center space-x-2">
+                              {isQuick ? (
+                                <div className="flex items-center space-x-1 bg-blue-50 text-blue-700 px-2 py-1 rounded-full">
+                                  <Zap className="w-3 h-3" />
+                                  <span className="text-xs font-medium">Rápida</span>
+                                </div>
+                              ) : (
+                                <div className="flex items-center space-x-1 bg-green-50 text-green-700 px-2 py-1 rounded-full">
+                                  <Clock className="w-3 h-3" />
+                                  <span className="text-xs font-medium">Completa</span>
+                                </div>
+                              )}
                             </div>
-                          )}
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <span className="font-mono text-sm text-foreground">
-                          {item.supplier?.cnpj || '00.000.000/0000-00'}
-                        </span>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center space-x-2">
-                          <span className="text-2xl font-bold text-foreground">
-                            {item.validation.score}
-                          </span>
-                          <div className="w-12 h-2 bg-muted rounded-full overflow-hidden">
-                            <div 
-                              className={`h-2 rounded-full ${
-                                item.validation.score >= 80 ? 'bg-success' :
-                                item.validation.score >= 50 ? 'bg-warning' :
-                                'bg-destructive'
-                              }`}
-                              style={{ width: `${item.validation.score}%` }}
-                            />
-                          </div>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <StatusBadge status={item.validation.status} size="sm" />
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center space-x-2">
-                          <Calendar className="w-4 h-4 text-muted-foreground" />
-                          <span className="text-sm text-foreground">
-                            {new Date(item.validation.createdAt).toLocaleDateString('pt-BR')}
-                          </span>
-                        </div>
-                      </td>
-                      <td className="p-4">
-                        <div className="flex items-center space-x-2">
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleViewDetail(item.validation.id, isQuick)}
-                            data-testid={`button-view-detail-${index}`}
-                          >
-                            <Eye className="w-4 h-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleExportSingle(item.validation.id, item.supplier?.companyName)}
-                            data-testid={`button-export-${index}`}
-                          >
-                            <Download className="w-4 h-4" />
-                          </Button>
-                        </div>
-                      </td>
-                    </tr>
+                          </td>
+                          <td className="p-4">
+                            <span className="font-mono text-sm text-foreground">
+                              {item.supplier?.cnpj || '00.000.000/0000-00'}
+                            </span>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center space-x-2">
+                              <span className="text-2xl font-bold text-foreground">
+                                {item.validation.score}
+                              </span>
+                              <div className="w-12 h-2 bg-muted rounded-full overflow-hidden">
+                                <div
+                                  className={`h-2 rounded-full ${item.validation.score >= 80 ? 'bg-success' :
+                                    item.validation.score >= 50 ? 'bg-warning' :
+                                      'bg-destructive'
+                                    }`}
+                                  style={{ width: `${item.validation.score}%` }}
+                                />
+                              </div>
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <StatusBadge status={item.validation.status} size="sm" />
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center space-x-2">
+                              <Calendar className="w-4 h-4 text-muted-foreground" />
+                              <span className="text-sm text-foreground">
+                                {new Date(item.validation.createdAt).toLocaleDateString('pt-BR')}
+                              </span>
+                            </div>
+                          </td>
+                          <td className="p-4">
+                            <div className="flex items-center space-x-2">
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleViewDetail(item.validation.id, isQuick)}
+                                data-testid={`button-view-detail-${index}`}
+                              >
+                                <Eye className="w-4 h-4" />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleExportSingle(item.validation.id, item.supplier?.companyName)}
+                                data-testid={`button-export-${index}`}
+                              >
+                                <Download className="w-4 h-4" />
+                              </Button>
+                            </div>
+                          </td>
+                        </tr>
                       );
                     })
                 ) : (

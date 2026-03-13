@@ -17,10 +17,10 @@ interface ValidationFormProps {
   setIsValidating: (loading: boolean) => void;
 }
 
-export default function ValidationForm({ 
-  onValidationComplete, 
-  isValidating, 
-  setIsValidating 
+export default function ValidationForm({
+  onValidationComplete,
+  isValidating,
+  setIsValidating
 }: ValidationFormProps) {
   const [cnpj, setCnpj] = useState("");
   const [name, setName] = useState("");
@@ -42,7 +42,8 @@ export default function ValidationForm({
         title: "Validação Concluída",
         description: "Análise realizada com sucesso!",
       });
-      // Invalidate dashboard data
+      // Invalidate dashboard and user data to refresh usage count
+      queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/stats"] });
       queryClient.invalidateQueries({ queryKey: ["/api/dashboard/recent"] });
     },
@@ -54,11 +55,26 @@ export default function ValidationForm({
           variant: "destructive",
         });
         setTimeout(() => {
-          window.location.href = "/api/login";
+          window.location.href = "/";
         }, 500);
         return;
       }
-      
+
+      // Handle limit exceeded
+      if (error.message.includes("Limite de consultas excedido") || (error as any).code === "LIMIT_EXCEEDED") {
+        toast({
+          title: "Limite Atingido",
+          description: "Você atingiu o limite de consultas do seu plano. Faça upgrade para continuar!",
+          variant: "destructive",
+          action: (
+            <Button variant="outline" size="sm" onClick={() => window.location.href = '/pricing'}>
+              Ver Planos
+            </Button>
+          ),
+        });
+        return;
+      }
+
       toast({
         title: "Erro na Validação",
         description: error.message,
@@ -81,7 +97,7 @@ export default function ValidationForm({
     }
 
     const cleanCnpj = cnpj.replace(/\D/g, '');
-    
+
     if (!isValidCNPJ(cleanCnpj)) {
       toast({
         title: "CNPJ Inválido",
@@ -91,7 +107,7 @@ export default function ValidationForm({
       return;
     }
 
-    validateMutation.mutate({ 
+    validateMutation.mutate({
       cnpj: cleanCnpj,
       name: name.trim() || undefined,
       category: category || undefined
@@ -179,7 +195,7 @@ export default function ValidationForm({
               </div>
             </div>
 
-            <Button 
+            <Button
               onClick={handleValidate}
               disabled={isValidating}
               className="w-full py-4 text-lg font-semibold"

@@ -8,7 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { formatCNPJ, isValidCNPJ } from "@/lib/cnpjUtils";
-import { Search, Clock, Shield, Eye, Calendar, Building } from "lucide-react";
+import { Search, Clock, Shield, Eye, Calendar, Building, TrendingUp } from "lucide-react";
 
 export default function QuickValidation() {
   const [cnpj, setCnpj] = useState("");
@@ -18,7 +18,7 @@ export default function QuickValidation() {
   const queryClient = useQueryClient();
 
   const validateMutation = useMutation({
-    mutationFn: async (data: { cnpj: string }) => {
+    mutationFn: async (data: { cnpj: string; analysisType?: string }) => {
       const response = await apiRequest("POST", "/api/validate", data);
       return response.json();
     },
@@ -54,7 +54,7 @@ export default function QuickValidation() {
     }
 
     const cleanCnpj = cnpj.replace(/\D/g, '');
-    
+
     if (!isValidCNPJ(cleanCnpj)) {
       toast({
         title: "CNPJ Inválido",
@@ -106,7 +106,7 @@ export default function QuickValidation() {
           Insira o CNPJ do fornecedor para análise rápida
         </p>
       </CardHeader>
-      
+
       <CardContent>
         <div className="space-y-4">
           <div>
@@ -126,7 +126,7 @@ export default function QuickValidation() {
                 disabled={validateMutation.isPending}
                 data-testid="input-cnpj-quick"
               />
-              <Button 
+              <Button
                 onClick={handleValidate}
                 disabled={validateMutation.isPending}
                 data-testid="button-validate-quick"
@@ -140,7 +140,7 @@ export default function QuickValidation() {
               </Button>
             </div>
           </div>
-          
+
           <div className="flex items-center space-x-4 text-sm text-muted-foreground">
             <div className="flex items-center space-x-1">
               <Clock className="w-4 h-4" />
@@ -159,7 +159,7 @@ export default function QuickValidation() {
                 <Building className="w-4 h-4 mr-2" />
                 Dados Básicos da Empresa
               </h4>
-              
+
               <div className="space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Nome da Empresa:</span>
@@ -167,7 +167,7 @@ export default function QuickValidation() {
                     {validationResult.supplier?.companyName || "Não disponível"}
                   </span>
                 </div>
-                
+
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground flex items-center">
                     <Calendar className="w-3 h-3 mr-1" />
@@ -180,16 +180,25 @@ export default function QuickValidation() {
 
                 <div className="flex items-center justify-between">
                   <span className="text-sm text-muted-foreground">Score de Risco:</span>
-                  <span className={`font-medium ${
-                    validationResult.validation?.score >= 80 ? 'text-green-600' :
+                  <span className={`font-medium ${validationResult.validation?.score >= 80 ? 'text-green-600' :
                     validationResult.validation?.score >= 50 ? 'text-yellow-600' : 'text-red-600'
-                  }`}>
+                    }`}>
                     {validationResult.validation?.score || 0}/100
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between pt-2 border-t mt-2">
+                  <span className="text-sm text-muted-foreground flex items-center">
+                    <TrendingUp className="w-3 h-3 mr-1 text-primary" />
+                    Valor da Ação ({validationResult.validation?.financialMarketData?.ticker || 'N/D'}):
+                  </span>
+                  <span className="font-bold text-primary">
+                    {validationResult.validation?.financialMarketData?.price ? `${validationResult.validation.financialMarketData.currency || 'BRL'} ${validationResult.validation.financialMarketData.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'N/D'}
                   </span>
                 </div>
               </div>
 
-              <Button 
+              <Button
                 onClick={handleViewQuickDetails}
                 className="w-full mt-4"
                 variant="outline"
@@ -202,6 +211,6 @@ export default function QuickValidation() {
           )}
         </div>
       </CardContent>
-    </Card>
+    </Card >
   );
 }

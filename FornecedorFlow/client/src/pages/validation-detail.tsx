@@ -15,7 +15,7 @@ export default function ValidationDetail() {
   const [location] = useLocation();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  
+
   const { data: validation, isLoading, error } = useQuery<any>({
     queryKey: [`/api/validations/${id}`],
     enabled: !!id,
@@ -28,22 +28,22 @@ export default function ValidationDetail() {
       if (!validation?.supplier?.cnpj) {
         throw new Error('CNPJ não encontrado para revalidação');
       }
-      
+
       const response = await apiRequest(`/api/validate`, 'POST', {
         cnpj: validation.supplier.cnpj,
         analysisType: validation.validation.analysisType || 'complete'
       });
-      
+
       return response;
     },
     onSuccess: (newValidation) => {
       // Update the current validation data in cache
       queryClient.setQueryData([`/api/validations/${id}`], newValidation);
-      
+
       // Invalidate related queries
       queryClient.invalidateQueries({ queryKey: ['/api/validations'] });
       queryClient.invalidateQueries({ queryKey: ['/api/dashboard'] });
-      
+
       toast({
         title: "Validação Atualizada",
         description: "Os dados foram atualizados com sucesso!",
@@ -61,7 +61,7 @@ export default function ValidationDetail() {
   // Determine analysis type based on database data and URL
   const urlHasQuickView = location.includes('view=quick');
   const isQuickAnalysisType = validation?.validation?.analysisType === 'quick';
-  
+
   // Set the correct view based on analysis type from database
   const isQuickView = isQuickAnalysisType || urlHasQuickView;
 
@@ -72,14 +72,14 @@ export default function ValidationDetail() {
       description: "You are logged out. Logging in again...",
       variant: "destructive",
     });
-    setTimeout(() => {
-      window.location.href = "/api/login";
-    }, 500);
+    if (!isLoading) { // Removed !user as it's not defined in this scope
+      window.location.href = "/";
+    }
   }
 
   const handleExportPDF = async () => {
     if (!validation) return;
-    
+
     try {
       await downloadPDF(validation.validation.id, validation.supplier?.companyName);
       toast({
@@ -109,9 +109,9 @@ export default function ValidationDetail() {
       });
       return;
     }
-    
-    const newLocation = urlHasQuickView 
-      ? `/validation/${id}` 
+
+    const newLocation = urlHasQuickView
+      ? `/validation/${id}`
       : `/validation/${id}?view=quick`;
     window.location.href = newLocation;
   };
@@ -120,7 +120,7 @@ export default function ValidationDetail() {
     if (revalidateMutation.isPending) {
       return;
     }
-    
+
     revalidateMutation.mutate();
   };
 
@@ -196,7 +196,7 @@ export default function ValidationDetail() {
             </p>
           </div>
         </div>
-        
+
         <div className="flex items-center space-x-2">
           <Button variant="outline" onClick={handleExportPDF} data-testid="button-export-pdf">
             <Download className="w-4 h-4 mr-2" />
@@ -208,7 +208,7 @@ export default function ValidationDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Content */}
         <div className="lg:col-span-2 space-y-6">
-          
+
           {/* Quick Analysis View - Basic Info Only */}
           {isQuickAnalysisType || urlHasQuickView ? (
             <Card data-testid="card-quick-analysis">
@@ -234,10 +234,9 @@ export default function ValidationDetail() {
                   </div>
                   <div>
                     <label className="text-sm font-medium text-muted-foreground">Score de Risco</label>
-                    <p className={`font-medium text-lg ${
-                      validationData.score >= 80 ? 'text-green-600' :
+                    <p className={`font-medium text-lg ${validationData.score >= 80 ? 'text-green-600' :
                       validationData.score >= 50 ? 'text-yellow-600' : 'text-red-600'
-                    }`}>
+                      }`}>
                       {validationData.score}/100
                     </p>
                   </div>
@@ -248,6 +247,32 @@ export default function ValidationDetail() {
                     </div>
                   </div>
                 </div>
+
+                {/* Market Data for Quick View */}
+                <div className="mt-6 pt-6 border-t">
+                  <h4 className="text-sm font-semibold text-primary mb-3 flex items-center">
+                    <TrendingUp className="w-4 h-4 mr-2" />
+                    Informações de Mercado (B3)
+                  </h4>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Ticker</label>
+                      <p className="text-foreground font-bold text-primary">{validationData.financialMarketData?.ticker || 'N/D'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Preço da Ação</label>
+                      <p className="text-foreground">
+                        {validationData.financialMarketData?.price ? `${validationData.financialMarketData.currency || 'BRL'} ${validationData.financialMarketData.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'N/D'}
+                      </p>
+                    </div>
+                    <div className="md:col-span-2">
+                      <label className="text-sm font-medium text-muted-foreground">Valuation (Market Cap)</label>
+                      <p className="text-foreground">
+                        {validationData.financialMarketData?.marketCap ? `${validationData.financialMarketData.currency || 'BRL'} ${validationData.financialMarketData.marketCap.toLocaleString('pt-BR', { notation: 'compact', maximumFractionDigits: 2 })}` : 'N/D'}
+                      </p>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
           ) : (
@@ -255,351 +280,440 @@ export default function ValidationDetail() {
             <>
               {/* Company Information */}
               <Card data-testid="card-company-info">
-            <CardHeader>
-              <CardTitle className="flex items-center space-x-2">
-                <Building className="w-5 h-5" />
-                <span>Informações da Empresa</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Razão Social</label>
-                  <p className="text-foreground">{supplier?.companyName || 'N/A'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Nome Fantasia</label>
-                  <p className="text-foreground">{supplier?.tradeName || 'N/A'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">CNPJ</label>
-                  <p className="font-mono text-foreground">{supplier?.cnpj || 'N/A'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Situação Legal</label>
-                  <p className="text-foreground">{supplier?.legalStatus || 'N/A'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Porte da Empresa</label>
-                  <p className="text-foreground">{supplier?.companySize || 'N/A'}</p>
-                </div>
-                <div>
-                  <label className="text-sm font-medium text-muted-foreground">Data de Abertura</label>
-                  <p className="text-foreground">
-                    {supplier?.openingDate ? new Date(supplier.openingDate).toLocaleDateString('pt-BR') : 'N/A'}
-                  </p>
-                </div>
-              </div>
-              
-              {supplier?.address && (
-                <div className="flex items-start space-x-2 pt-4">
-                  <MapPin className="w-4 h-4 text-muted-foreground mt-1" />
-                  <div>
-                    <p className="text-foreground">{supplier.address}</p>
-                    <p className="text-sm text-muted-foreground">
-                      {supplier.city}, {supplier.state} - {supplier.zipCode}
-                    </p>
-                  </div>
-                </div>
-              )}
-              
-              <div className="flex items-center space-x-6 pt-4">
-                {supplier?.phone && (
-                  <div className="flex items-center space-x-2">
-                    <Phone className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-foreground">{supplier.phone}</span>
-                  </div>
-                )}
-                {supplier?.email && (
-                  <div className="flex items-center space-x-2">
-                    <Mail className="w-4 h-4 text-muted-foreground" />
-                    <span className="text-foreground">{supplier.email}</span>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Status Cadastral */}
-          {validationData.cadastralStatus && (
-            <Card data-testid="card-cadastral-status">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <FileText className="w-5 h-5" />
-                  <span>Status Cadastral</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Situação RF</label>
-                    <p className={`font-medium ${
-                      validationData.cadastralStatus?.status === 'APROVADO' ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {validationData.cadastralStatus?.status || 'N/A'}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Data de Abertura</label>
-                    <p className="text-foreground">{formatDate(supplier?.openingDate)}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">CNAE Principal</label>
-                    <p className="text-foreground">{supplier?.cnaeCode || 'N/A'}</p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Capital Social</label>
-                    <p className="text-foreground">
-                      {supplier?.shareCapital ? `R$ ${Number(supplier.shareCapital).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'N/A'}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Saúde Financeira */}
-          {validationData.financialHealth && (
-            <Card data-testid="card-financial-health">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <TrendingUp className="w-5 h-5" />
-                  <span>Saúde Financeira</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Protestos</label>
-                    <p className={`font-medium ${
-                      (validationData.financialHealth?.protests?.length || 0) === 0 ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {(validationData.financialHealth?.protests?.length || 0) === 0 ? 'NENHUM' : `${validationData.financialHealth.protests.length} encontrado(s)`}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Falências</label>
-                    <p className={`font-medium ${
-                      (validationData.financialHealth?.bankruptcies?.length || 0) === 0 ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {(validationData.financialHealth?.bankruptcies?.length || 0) === 0 ? 'NENHUMA' : `${validationData.financialHealth.bankruptcies.length} encontrada(s)`}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Recuperação Judicial</label>
-                    <p className={`font-medium ${
-                      !validationData.financialHealth?.judicialRecovery ? 'text-green-600' : 'text-red-600'
-                    }`}>
-                      {!validationData.financialHealth?.judicialRecovery ? 'NÃO' : 'SIM'}
-                    </p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Certidões Negativas */}
-          {validationData.certificates && (
-            <Card data-testid="card-certificates">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Shield className="w-5 h-5" />
-                  <span>Certidões Negativas</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium text-muted-foreground">Federal</label>
-                    <div className="flex items-center space-x-2">
-                      {validationData.certificates?.federal?.status === 'valid' ? (
-                        <CheckCircle className="w-4 h-4 text-green-600" />
-                      ) : (
-                        <XCircle className="w-4 h-4 text-red-600" />
-                      )}
-                      <span className={`font-medium ${
-                        validationData.certificates?.federal?.status === 'valid' ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {validationData.certificates?.federal?.status === 'valid' ? 'VÁLIDA' : 'INVÁLIDA'}
-                      </span>
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <Building className="w-5 h-5" />
+                    <span>Informações da Empresa</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Razão Social</label>
+                      <p className="text-foreground">{supplier?.companyName || 'N/A'}</p>
                     </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium text-muted-foreground">Estadual</label>
-                    <div className="flex items-center space-x-2">
-                      {validationData.certificates?.state?.status === 'valid' ? (
-                        <CheckCircle className="w-4 h-4 text-green-600" />
-                      ) : (
-                        <XCircle className="w-4 h-4 text-red-600" />
-                      )}
-                      <span className={`font-medium ${
-                        validationData.certificates?.state?.status === 'valid' ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {validationData.certificates?.state?.status === 'valid' ? 'VÁLIDA' : 'INVÁLIDA'}
-                      </span>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Nome Fantasia</label>
+                      <p className="text-foreground">{supplier?.tradeName || 'N/A'}</p>
                     </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium text-muted-foreground">Municipal</label>
-                    <div className="flex items-center space-x-2">
-                      {validationData.certificates?.municipal?.status === 'valid' ? (
-                        <CheckCircle className="w-4 h-4 text-green-600" />
-                      ) : (
-                        <XCircle className="w-4 h-4 text-red-600" />
-                      )}
-                      <span className={`font-medium ${
-                        validationData.certificates?.municipal?.status === 'valid' ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {validationData.certificates?.municipal?.status === 'valid' ? 'VÁLIDA' : 'INVÁLIDA'}
-                      </span>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">CNPJ</label>
+                      <p className="font-mono text-foreground">{supplier?.cnpj || 'N/A'}</p>
                     </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <label className="text-sm font-medium text-muted-foreground">Trabalhista</label>
-                    <div className="flex items-center space-x-2">
-                      {validationData.certificates?.labor?.status === 'valid' ? (
-                        <CheckCircle className="w-4 h-4 text-green-600" />
-                      ) : (
-                        <XCircle className="w-4 h-4 text-red-600" />
-                      )}
-                      <span className={`font-medium ${
-                        validationData.certificates?.labor?.status === 'valid' ? 'text-green-600' : 'text-red-600'
-                      }`}>
-                        {validationData.certificates?.labor?.status === 'valid' ? 'VÁLIDA' : 'INVÁLIDA'}
-                      </span>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Situação Legal</label>
+                      <p className="text-foreground">{supplier?.legalStatus || 'N/A'}</p>
                     </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Análise de Risco e Compliance */}
-          {validationData.riskAnalysis && (
-            <Card data-testid="card-risk-analysis">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <AlertTriangle className="w-5 h-5" />
-                  <span>Análise de Risco e Compliance</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Score de Compliance</label>
-                    <div className="flex items-center space-x-3 mt-1">
-                      <span className="text-2xl font-bold text-foreground">
-                        {validationData.riskAnalysis?.complianceScore || validationData.score}/100
-                      </span>
-                      <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                        (validationData.riskAnalysis?.complianceScore || validationData.score) >= 70 
-                          ? 'bg-green-100 text-green-800' 
-                          : (validationData.riskAnalysis?.complianceScore || validationData.score) >= 50
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}>
-                        {(validationData.riskAnalysis?.complianceScore || validationData.score) >= 70 
-                          ? 'ADEQUADO' 
-                          : (validationData.riskAnalysis?.complianceScore || validationData.score) >= 50
-                          ? 'MODERADO'
-                          : 'INADEQUADO'}
-                      </span>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Porte da Empresa</label>
+                      <p className="text-foreground">{supplier?.companySize || 'N/A'}</p>
                     </div>
-                  </div>
-                </div>
-                
-                {validationData.riskAnalysis?.checks && (
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground mb-2 block">Verificações de Compliance</label>
-                    <div className="space-y-2">
-                      {Object.entries(validationData.riskAnalysis.checks).map(([key, value]: [string, any]) => (
-                        <div key={key} className="flex items-center justify-between">
-                          <span className="text-sm text-foreground capitalize">{key.replace(/_/g, ' ')}</span>
-                          <div className="flex items-center space-x-1">
-                            {value?.status === 'passed' ? (
-                              <CheckCircle className="w-4 h-4 text-green-600" />
-                            ) : value?.status === 'warning' ? (
-                              <AlertTriangle className="w-4 h-4 text-yellow-600" />
-                            ) : (
-                              <XCircle className="w-4 h-4 text-red-600" />
-                            )}
-                            <span className={`text-xs ${
-                              value?.status === 'passed' ? 'text-green-600' : 
-                              value?.status === 'warning' ? 'text-yellow-600' : 'text-red-600'
-                            }`}>
-                              {value?.status === 'passed' ? 'OK' : 
-                               value?.status === 'warning' ? 'ATENÇÃO' : 'FALHOU'}
-                            </span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Estrutura Societária */}
-          {validation.partners && validation.partners.length > 0 && (
-            <Card data-testid="card-corporate-structure">
-              <CardHeader>
-                <CardTitle className="flex items-center space-x-2">
-                  <Users className="w-5 h-5" />
-                  <span>Estrutura Societária</span>
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {validation.partners.map((partner: any, index: number) => (
-                  <div key={index} className="p-3 bg-muted rounded-lg">
-                    <h4 className="font-medium text-foreground">{partner.name}</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {partner.qualification}
-                      {partner.sharePercentage && partner.sharePercentage > 0 && ` - ${partner.sharePercentage}`}
-                    </p>
-                    {partner.cpfCnpj && (
-                      <p className="text-xs text-muted-foreground mt-1">
-                        {partner.cpfCnpj}
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Data de Abertura</label>
+                      <p className="text-foreground">
+                        {supplier?.openingDate ? new Date(supplier.openingDate).toLocaleDateString('pt-BR') : 'N/A'}
                       </p>
+                    </div>
+                  </div>
+
+                  {supplier?.address && (
+                    <div className="flex items-start space-x-2 pt-4">
+                      <MapPin className="w-4 h-4 text-muted-foreground mt-1" />
+                      <div>
+                        <p className="text-foreground">{supplier.address}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {supplier.city}, {supplier.state} - {supplier.zipCode}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center space-x-6 pt-4">
+                    {supplier?.phone && (
+                      <div className="flex items-center space-x-2">
+                        <Phone className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-foreground">{supplier.phone}</span>
+                      </div>
+                    )}
+                    {supplier?.email && (
+                      <div className="flex items-center space-x-2">
+                        <Mail className="w-4 h-4 text-muted-foreground" />
+                        <span className="text-foreground">{supplier.email}</span>
+                      </div>
                     )}
                   </div>
-                ))}
-              </CardContent>
-            </Card>
-          )}
+                </CardContent>
+              </Card>
 
-          {/* Analysis Details */}
-          {analysis && (
-            <Card data-testid="card-analysis-details">
-              <CardHeader>
-                <CardTitle>Detalhes da Análise</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Fonte dos Dados</label>
-                    <p className="text-foreground">{analysis.dataSource || validationData.dataSource || 'N/A'}</p>
+              {/* Informações de Mercado (B3) - Complete View */}
+              <Card data-testid="card-market-data">
+                <CardHeader>
+                  <CardTitle className="flex items-center space-x-2">
+                    <TrendingUp className="w-5 h-5 text-primary" />
+                    <span>Informações de Mercado (B3)</span>
+                  </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Ticker</label>
+                      <p className="text-lg font-bold text-primary">{validationData.financialMarketData?.ticker || 'N/D'}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Preço da Ação</label>
+                      <p className="text-foreground font-medium">
+                        {validationData.financialMarketData?.price ? `${validationData.financialMarketData.currency || 'BRL'} ${validationData.financialMarketData.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'N/D'}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Valuation (Market Cap)</label>
+                      <p className="text-foreground font-medium">
+                        {validationData.financialMarketData?.marketCap ? `${validationData.financialMarketData.currency || 'BRL'} ${validationData.financialMarketData.marketCap.toLocaleString('pt-BR', { notation: 'compact', maximumFractionDigits: 2 })}` : 'N/D'}
+                      </p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-muted-foreground">Fonte</label>
+                      <p className="text-sm text-muted-foreground">{validationData.financialMarketData?.source || 'B3 / HG Brasil / Brapi'}</p>
+                    </div>
                   </div>
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Tempo de Processamento</label>
-                    <p className="text-foreground">
-                      {analysis.processingTime || validationData.processingTime ? `${analysis.processingTime || validationData.processingTime}ms` : 'N/A'}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Custo da Consulta</label>
-                    <p className="text-foreground">
-                      {analysis.apiCost || validationData.apiCost ? `R$ ${Number(analysis.apiCost || validationData.apiCost).toFixed(4)}` : 'N/A'}
-                    </p>
-                  </div>
-                  <div>
-                    <label className="text-sm font-medium text-muted-foreground">Data da Análise</label>
-                    <p className="text-foreground">{formatDate(validationData.createdAt)}</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
+                </CardContent>
+              </Card>
+
+              {/* Status Cadastral */}
+              {validationData.cadastralStatus && (
+                <Card data-testid="card-cadastral-status">
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <FileText className="w-5 h-5" />
+                      <span>Status Cadastral</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Situação RF</label>
+                        <p className={`font-medium ${validationData.cadastralStatus?.status === 'APROVADO' ? 'text-green-600' : 'text-red-600'
+                          }`}>
+                          {validationData.cadastralStatus?.status || 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Data de Abertura</label>
+                        <p className="text-foreground">{formatDate(supplier?.openingDate)}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">CNAE Principal</label>
+                        <p className="text-foreground">{supplier?.cnaeCode || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Capital Social</label>
+                        <p className="text-foreground">
+                          {supplier?.shareCapital ? `R$ ${Number(supplier.shareCapital).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'N/A'}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Saúde Financeira */}
+              {validationData.financialHealth && (
+                <Card data-testid="card-financial-health">
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <TrendingUp className="w-5 h-5" />
+                      <span>Saúde Financeira</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Protestos</label>
+                        <p className={`font-medium ${(validationData.financialHealth?.protests?.length || 0) === 0 ? 'text-green-600' : 'text-red-600'
+                          }`}>
+                          {(validationData.financialHealth?.protests?.length || 0) === 0 ? 'NENHUM' : `${validationData.financialHealth.protests.length} encontrado(s)`}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Falências</label>
+                        <p className={`font-medium ${(validationData.financialHealth?.bankruptcies?.length || 0) === 0 ? 'text-green-600' : 'text-red-600'
+                          }`}>
+                          {(validationData.financialHealth?.bankruptcies?.length || 0) === 0 ? 'NENHUMA' : `${validationData.financialHealth.bankruptcies.length} encontrada(s)`}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Recuperação Judicial</label>
+                        <p className={`font-medium ${!validationData.financialHealth?.judicialRecovery ? 'text-green-600' : 'text-red-600'
+                          }`}>
+                          {!validationData.financialHealth?.judicialRecovery ? 'NÃO' : 'SIM'}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Certidões Negativas */}
+              {validationData.certificates && (
+                <Card data-testid="card-certificates">
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <Shield className="w-5 h-5" />
+                      <span>Certidões Negativas</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="flex items-center justify-between">
+                        <label className="text-sm font-medium text-muted-foreground">Federal</label>
+                        <div className="flex items-center space-x-2">
+                          {validationData.certificates?.federal?.status === 'valid' ? (
+                            <CheckCircle className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <XCircle className="w-4 h-4 text-red-600" />
+                          )}
+                          <span className={`font-medium ${validationData.certificates?.federal?.status === 'valid' ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                            {validationData.certificates?.federal?.status === 'valid' ? 'VÁLIDA' : 'INVÁLIDA'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <label className="text-sm font-medium text-muted-foreground">Estadual</label>
+                        <div className="flex items-center space-x-2">
+                          {validationData.certificates?.state?.status === 'valid' ? (
+                            <CheckCircle className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <XCircle className="w-4 h-4 text-red-600" />
+                          )}
+                          <span className={`font-medium ${validationData.certificates?.state?.status === 'valid' ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                            {validationData.certificates?.state?.status === 'valid' ? 'VÁLIDA' : 'INVÁLIDA'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <label className="text-sm font-medium text-muted-foreground">Municipal</label>
+                        <div className="flex items-center space-x-2">
+                          {validationData.certificates?.municipal?.status === 'valid' ? (
+                            <CheckCircle className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <XCircle className="w-4 h-4 text-red-600" />
+                          )}
+                          <span className={`font-medium ${validationData.certificates?.municipal?.status === 'valid' ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                            {validationData.certificates?.municipal?.status === 'valid' ? 'VÁLIDA' : 'INVÁLIDA'}
+                          </span>
+                        </div>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <label className="text-sm font-medium text-muted-foreground">Trabalhista</label>
+                        <div className="flex items-center space-x-2">
+                          {validationData.certificates?.labor?.status === 'valid' ? (
+                            <CheckCircle className="w-4 h-4 text-green-600" />
+                          ) : (
+                            <XCircle className="w-4 h-4 text-red-600" />
+                          )}
+                          <span className={`font-medium ${validationData.certificates?.labor?.status === 'valid' ? 'text-green-600' : 'text-red-600'
+                            }`}>
+                            {validationData.certificates?.labor?.status === 'valid' ? 'VÁLIDA' : 'INVÁLIDA'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Análise de Risco e Compliance */}
+              {validationData.riskAnalysis && (
+                <Card data-testid="card-risk-analysis">
+                  <CardHeader>
+                    <CardTitle className="flex items-center space-x-2">
+                      <AlertTriangle className="w-5 h-5" />
+                      <span>Análise de Risco e Compliance</span>
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="flex items-center justify-between p-4 bg-muted rounded-lg">
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Score de Compliance</label>
+                        <div className="flex items-center space-x-3 mt-1">
+                          <span className="text-2xl font-bold text-foreground">
+                            {validationData.riskAnalysis?.complianceScore || validationData.score}/100
+                          </span>
+                          <span className={`px-2 py-1 text-xs font-medium rounded-full ${(validationData.riskAnalysis?.complianceScore || validationData.score) >= 70
+                            ? 'bg-green-100 text-green-800'
+                            : (validationData.riskAnalysis?.complianceScore || validationData.score) >= 50
+                              ? 'bg-yellow-100 text-yellow-800'
+                              : 'bg-red-100 text-red-800'
+                            }`}>
+                            {(validationData.riskAnalysis?.complianceScore || validationData.score) >= 70
+                              ? 'ADEQUADO'
+                              : (validationData.riskAnalysis?.complianceScore || validationData.score) >= 50
+                                ? 'MODERADO'
+                                : 'INADEQUADO'}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    {validationData.riskAnalysis?.checks && (
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground mb-2 block">Verificações de Compliance</label>
+                        <div className="space-y-2">
+                          {Object.entries(validationData.riskAnalysis.checks).map(([key, value]: [string, any]) => (
+                            <div key={key} className="flex items-center justify-between">
+                              <span className="text-sm text-foreground capitalize">{key.replace(/_/g, ' ')}</span>
+                              <div className="flex items-center space-x-1">
+                                {value?.status === 'passed' ? (
+                                  <CheckCircle className="w-4 h-4 text-green-600" />
+                                ) : value?.status === 'warning' ? (
+                                  <AlertTriangle className="w-4 h-4 text-yellow-600" />
+                                ) : (
+                                  <XCircle className="w-4 h-4 text-red-600" />
+                                )}
+                                <span className={`text-xs ${value?.status === 'passed' ? 'text-green-600' :
+                                  value?.status === 'warning' ? 'text-yellow-600' : 'text-red-600'
+                                  }`}>
+                                  {value?.status === 'passed' ? 'OK' :
+                                    value?.status === 'warning' ? 'ATENÇÃO' : 'FALHOU'}
+                                </span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* Estrutura Societária */}
+              {validation.partners && validation.partners.length > 0 && (() => {
+                // Remover duplicatas baseado em nome
+                const uniquePartners = validation.partners.reduce((acc: any[], current: any) => {
+                  const exists = acc.find((p: any) => p.name === current.name);
+
+                  if (!exists) {
+                    acc.push(current);
+                  } else {
+                    const existingIndex = acc.findIndex((p: any) => p.name === current.name);
+
+                    // Manter o que tem mais informações (CPF/CNPJ, sharePercentage ou qualificação com código)
+                    const hasMoreInfo =
+                      (current.cpfCnpj && !exists.cpfCnpj) ||
+                      (current.sharePercentage > 0 && !exists.sharePercentage) ||
+                      (/\\d/.test(current.qualification || '') && !/\\d/.test(exists.qualification || ''));
+
+                    if (hasMoreInfo) {
+                      acc[existingIndex] = current;
+                    }
+                  }
+
+                  return acc;
+                }, []);
+
+                // Detectar sócios em recuperação judicial
+                const checkRecoveryKeywords = (name: string) => {
+                  const keywords = ['recuperação judicial', 'recuperacao judicial', 'em recuperação', 'em rj'];
+                  return keywords.some(keyword => name.toLowerCase().includes(keyword));
+                };
+
+                return (
+                  <Card data-testid="card-corporate-structure">
+                    <CardHeader>
+                      <CardTitle className="flex items-center space-x-2">
+                        <Users className="w-5 h-5" />
+                        <span>Estrutura Societária</span>
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="space-y-3">
+                      {uniquePartners.map((partner: any, index: number) => {
+                        const isInRecovery = checkRecoveryKeywords(partner.name);
+
+                        return (
+                          <div
+                            key={`${partner.name}-${index}`}
+                            className={`p-3 rounded-lg border ${isInRecovery
+                              ? 'bg-red-50 border-red-300 dark:bg-red-950/20 dark:border-red-800'
+                              : 'bg-muted border-border'
+                              }`}
+                          >
+                            <div className="flex items-start justify-between">
+                              <div className="flex-1">
+                                <h4 className="font-medium text-foreground flex items-center gap-2">
+                                  {partner.name}
+                                  {isInRecovery && (
+                                    <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-600 text-white">
+                                      <AlertTriangle className="w-3 h-3 mr-1" />
+                                      RJ
+                                    </span>
+                                  )}
+                                </h4>
+                                <p className="text-sm text-muted-foreground mt-1">
+                                  {partner.qualification}
+                                </p>
+                              </div>
+                              {partner.sharePercentage && partner.sharePercentage > 0 && (
+                                <div className="text-right">
+                                  <p className="text-sm font-medium text-foreground">
+                                    {Number(partner.sharePercentage).toFixed(2)}%
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">Participação</p>
+                                </div>
+                              )}
+                            </div>
+                            {partner.cpfCnpj && (
+                              <p className="text-xs text-muted-foreground mt-2 font-mono">
+                                {partner.cpfCnpj}
+                              </p>
+                            )}
+                            {partner.entryDate && (
+                              <p className="text-xs text-muted-foreground mt-1">
+                                Desde: {formatDate(partner.entryDate)}
+                              </p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </CardContent>
+                  </Card>
+                );
+              })()}
+
+              {/* Analysis Details */}
+              {analysis && (
+                <Card data-testid="card-analysis-details">
+                  <CardHeader>
+                    <CardTitle>Detalhes da Análise</CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Fonte dos Dados</label>
+                        <p className="text-foreground">{analysis.dataSource || validationData.dataSource || 'N/A'}</p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Tempo de Processamento</label>
+                        <p className="text-foreground">
+                          {analysis.processingTime || validationData.processingTime ? `${analysis.processingTime || validationData.processingTime}ms` : 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Custo da Consulta</label>
+                        <p className="text-foreground">
+                          {analysis.apiCost || validationData.apiCost ? `R$ ${Number(analysis.apiCost || validationData.apiCost).toFixed(4)}` : 'N/A'}
+                        </p>
+                      </div>
+                      <div>
+                        <label className="text-sm font-medium text-muted-foreground">Data da Análise</label>
+                        <p className="text-foreground">{formatDate(validationData.createdAt)}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
             </>
           )}
         </div>
@@ -616,12 +730,11 @@ export default function ValidationDetail() {
                 {validationData.score}
               </div>
               <div className="w-full h-3 bg-muted rounded-full overflow-hidden">
-                <div 
-                  className={`h-3 rounded-full transition-all ${
-                    validationData.score >= 80 ? 'bg-success' :
+                <div
+                  className={`h-3 rounded-full transition-all ${validationData.score >= 80 ? 'bg-success' :
                     validationData.score >= 50 ? 'bg-warning' :
-                    'bg-destructive'
-                  }`}
+                      'bg-destructive'
+                    }`}
                   style={{ width: `${validationData.score}%` }}
                 />
               </div>
@@ -635,16 +748,16 @@ export default function ValidationDetail() {
               <CardTitle>Ações</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button 
-                className="w-full" 
+              <Button
+                className="w-full"
                 onClick={handleExportPDF}
                 data-testid="button-export-report"
               >
                 <Download className="w-4 h-4 mr-2" />
                 Baixar Relatório
               </Button>
-              <Button 
-                variant="outline" 
+              <Button
+                variant="outline"
                 className="w-full"
                 onClick={handleRefreshValidation}
                 disabled={revalidateMutation.isPending}

@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { useLocation } from "wouter";
 import { useAuth } from "@/hooks/useAuth";
 import { useToast } from "@/hooks/use-toast";
 import Sidebar from "@/components/layout/sidebar";
@@ -9,8 +10,14 @@ import RecentValidations from "@/components/dashboard/recent-validations";
 import ScoreDistribution from "@/components/dashboard/score-distribution";
 
 export default function Home() {
+  const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { isAuthenticated, isLoading } = useAuth();
+
+  const handleNavigate = (path: string) => {
+    console.log("Navigating to:", path);
+    setLocation(path);
+  };
 
   // Redirect to login if not authenticated
   useEffect(() => {
@@ -21,7 +28,7 @@ export default function Home() {
         variant: "destructive",
       });
       setTimeout(() => {
-        window.location.href = "/api/login";
+        window.location.href = "/";
       }, 500);
       return;
     }
@@ -67,12 +74,13 @@ export default function Home() {
               <div className="lg:col-span-2">
                 <QuickValidation />
               </div>
-              
+
               {/* Quick Actions */}
               <div className="bg-card rounded-lg border border-border p-6">
                 <h3 className="text-lg font-semibold text-foreground mb-4">Ações Rápidas</h3>
                 <div className="space-y-3">
-                  <button 
+                  <button
+                    onClick={() => handleNavigate("/validate")}
                     className="w-full flex items-center space-x-3 p-3 bg-muted hover:bg-muted/80 rounded-lg text-left transition-colors"
                     data-testid="button-bulk-validation"
                   >
@@ -86,8 +94,9 @@ export default function Home() {
                       <p className="text-xs text-muted-foreground">Upload de planilha</p>
                     </div>
                   </button>
-                  
-                  <button 
+
+                  <button
+                    onClick={() => handleNavigate("/reports")}
                     className="w-full flex items-center space-x-3 p-3 bg-muted hover:bg-muted/80 rounded-lg text-left transition-colors"
                     data-testid="button-export-reports"
                   >
@@ -101,8 +110,9 @@ export default function Home() {
                       <p className="text-xs text-muted-foreground">PDF e Excel</p>
                     </div>
                   </button>
-                  
-                  <button 
+
+                  <button
+                    onClick={() => handleNavigate("/settings")}
                     className="w-full flex items-center space-x-3 p-3 bg-muted hover:bg-muted/80 rounded-lg text-left transition-colors"
                     data-testid="button-schedule-alerts"
                   >

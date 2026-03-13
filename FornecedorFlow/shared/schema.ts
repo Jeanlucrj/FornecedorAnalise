@@ -27,11 +27,13 @@ export const sessions = pgTable(
 // User storage table for Replit Auth
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
-  email: varchar("email").unique(),
+  email: varchar("email").unique().notNull(),
+  password: text("password").notNull().default(''),
   firstName: varchar("first_name"),
   lastName: varchar("last_name"),
   profileImageUrl: varchar("profile_image_url"),
-  plan: varchar("plan").default("free"), // free, pro, enterprise
+  plan: varchar("plan").default("free"), // free, professional, enterprise
+  planUpdatedAt: timestamp("plan_updated_at"),
   apiUsage: integer("api_usage").default(0),
   apiLimit: integer("api_limit").default(100),
   // Notification settings
@@ -42,6 +44,26 @@ export const users = pgTable("users", {
   whatsappNotifications: boolean("whatsapp_notifications").default(false),
   notificationEmail: varchar("notification_email"),
   whatsappNumber: varchar("whatsapp_number"),
+  // New profile fields
+  document: varchar("document"), // CPF or CNPJ
+  phone: varchar("phone"),
+  state: varchar("state"),
+  city: varchar("city"),
+  // Admin and login tracking
+  isAdmin: boolean("is_admin").default(false),
+  lastLoginAt: timestamp("last_login_at"),
+  createdAt: timestamp("created_at").defaultNow(),
+  updatedAt: timestamp("updated_at").defaultNow(),
+});
+
+// Admins table
+export const admins = pgTable("admins", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  username: varchar("username").unique().notNull(),
+  password: text("password").notNull(),
+  email: varchar("email").unique().notNull(),
+  isActive: boolean("is_active").default(true),
+  lastLoginAt: timestamp("last_login_at"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -65,6 +87,8 @@ export const suppliers = pgTable("suppliers", {
   zipCode: varchar("zip_code", { length: 20 }),
   phone: varchar("phone"),
   email: varchar("email"),
+  ticker: varchar("ticker", { length: 10 }),
+  legalNature: text("legal_nature"),
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -90,23 +114,24 @@ export const validations = pgTable("validations", {
   status: varchar("status").notNull(), // approved, attention, critical
   category: varchar("category"), // technology, services, industry, etc.
   analysisType: varchar("analysis_type").default("complete"), // quick, complete
-  
+
   // Analysis results
   cadastralStatus: jsonb("cadastral_status"), // Receita Federal data
   financialHealth: jsonb("financial_health"), // Protests, bankruptcies, etc.
   certificates: jsonb("certificates"), // Federal, state, municipal, labor
   legalIssues: jsonb("legal_issues"), // Court processes, sanctions
   riskAnalysis: jsonb("risk_analysis"), // Compliance and risk assessment data
-  
+  financialMarketData: jsonb("financial_market_data"), // Stock price and valuation data
+
   // Metadata
   dataSource: varchar("data_source"), // API provider used
   apiCost: decimal("api_cost", { precision: 10, scale: 4 }),
   processingTime: integer("processing_time"), // milliseconds
-  
+
   // Monitoring
   monitoringEnabled: boolean("monitoring_enabled").default(false),
   nextCheck: timestamp("next_check"),
-  
+
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });
@@ -124,6 +149,24 @@ export const alerts = pgTable("alerts", {
   isRead: boolean("is_read").default(false),
   createdAt: timestamp("created_at").defaultNow(),
 });
+
+// Activity Logs table
+export const activityLogs = pgTable("activity_logs", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id),
+  adminId: varchar("admin_id").references(() => admins.id),
+  action: varchar("action").notNull(),
+  resource: varchar("resource"),
+  resourceId: varchar("resource_id"),
+  details: jsonb("details"),
+  ipAddress: varchar("ip_address"),
+  userAgent: text("user_agent"),
+  createdAt: timestamp("created_at").defaultNow(),
+}, (table) => [
+  index("IDX_activity_logs_user_id").on(table.userId),
+  index("IDX_activity_logs_admin_id").on(table.adminId),
+  index("IDX_activity_logs_created_at").on(table.createdAt),
+]);
 
 // Export schemas for validation
 export const insertUserSchema = createInsertSchema(users).omit({
@@ -154,6 +197,17 @@ export const insertAlertSchema = createInsertSchema(alerts).omit({
   createdAt: true,
 });
 
+export const insertAdminSchema = createInsertSchema(admins).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export const insertActivityLogSchema = createInsertSchema(activityLogs).omit({
+  id: true,
+  createdAt: true,
+});
+
 // Types
 export type UpsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
@@ -165,3 +219,7 @@ export type InsertPartner = z.infer<typeof insertPartnerSchema>;
 export type Partner = typeof partners.$inferSelect;
 export type InsertAlert = z.infer<typeof insertAlertSchema>;
 export type Alert = typeof alerts.$inferSelect;
+export type InsertAdmin = z.infer<typeof insertAdminSchema>;
+export type Admin = typeof admins.$inferSelect;
+export type InsertActivityLog = z.infer<typeof insertActivityLogSchema>;
+export type ActivityLog = typeof activityLogs.$inferSelect;

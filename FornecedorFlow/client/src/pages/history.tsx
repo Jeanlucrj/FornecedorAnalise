@@ -21,7 +21,7 @@ export default function History() {
         variant: "destructive",
       });
       setTimeout(() => {
-        window.location.href = "/api/login";
+        window.location.href = "/";
       }, 500);
       return;
     }
@@ -51,7 +51,7 @@ export default function History() {
           <div className="p-6">
             <div className="mb-8">
               <div className="flex items-center space-x-4 mb-4">
-                <Button 
+                <Button
                   onClick={() => window.location.href = '/'}
                   data-testid="button-back-home"
                 >

@@ -36,7 +36,7 @@ export default function HistoryTable({ filters = {} }: HistoryTableProps) {
       variant: "destructive",
     });
     setTimeout(() => {
-      window.location.href = "/api/login";
+      window.location.href = "/";
     }, 500);
   }
 
@@ -136,7 +136,7 @@ export default function HistoryTable({ filters = {} }: HistoryTableProps) {
           </Button>
         </div>
       </CardHeader>
-      
+
       <CardContent>
         <div className="overflow-x-auto">
           <table className="w-full">
@@ -165,23 +165,21 @@ export default function HistoryTable({ filters = {} }: HistoryTableProps) {
             <tbody className="divide-y divide-border">
               {validations && validations.length > 0 ? (
                 validations.map((item: any, index: number) => (
-                  <tr 
-                    key={item.validation.id} 
+                  <tr
+                    key={item.validation.id}
                     className="hover:bg-muted/50 transition-colors"
                     data-testid={`validation-row-${index}`}
                   >
                     <td className="p-4">
                       <div className="flex items-center space-x-3">
-                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                          item.validation.status === 'approved' ? 'bg-primary/10' :
-                          item.validation.status === 'attention' ? 'bg-warning/10' :
-                          'bg-destructive/10'
-                        }`}>
-                          <Building className={`w-4 h-4 ${
-                            item.validation.status === 'approved' ? 'text-primary' :
-                            item.validation.status === 'attention' ? 'text-warning' :
-                            'text-destructive'
-                          }`} />
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${item.validation.status === 'approved' ? 'bg-primary/10' :
+                            item.validation.status === 'attention' ? 'bg-warning/10' :
+                              'bg-destructive/10'
+                          }`}>
+                          <Building className={`w-4 h-4 ${item.validation.status === 'approved' ? 'text-primary' :
+                              item.validation.status === 'attention' ? 'text-warning' :
+                                'text-destructive'
+                            }`} />
                         </div>
                         <div>
                           <p className="font-medium text-foreground">
@@ -204,12 +202,11 @@ export default function HistoryTable({ filters = {} }: HistoryTableProps) {
                           {item.validation.score}
                         </span>
                         <div className="w-12 h-2 bg-muted rounded-full overflow-hidden">
-                          <div 
-                            className={`h-2 rounded-full ${
-                              item.validation.score >= 80 ? 'bg-success' :
-                              item.validation.score >= 50 ? 'bg-warning' :
-                              'bg-destructive'
-                            }`}
+                          <div
+                            className={`h-2 rounded-full ${item.validation.score >= 80 ? 'bg-success' :
+                                item.validation.score >= 50 ? 'bg-warning' :
+                                  'bg-destructive'
+                              }`}
                             style={{ width: `${item.validation.score}%` }}
                           />
                         </div>
@@ -264,7 +261,7 @@ export default function HistoryTable({ filters = {} }: HistoryTableProps) {
             </tbody>
           </table>
         </div>
-        
+
         {/* Pagination */}
         {validations && validations.length > 0 && (
           <div className="mt-4 pt-4 border-t border-border">

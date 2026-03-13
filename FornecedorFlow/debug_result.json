@@ -1,0 +1,60 @@
+{
+  "companyName": "DIRECIONAL ENGENHARIA S/A",
+  "legalStatus": "ATIVA",
+  "legalSituation": "ATIVA",
+  "companySize": "GRANDE",
+  "cnaeCode": "4120400",
+  "cnaeDescription": "Construção de edifícios",
+  "openingDate": "1981-03-06T03:00:00.000Z",
+  "shareCapital": 1181857400,
+  "address": "RUA DOS OTONI, 177 - SANTA EFIGENIA",
+  "city": "BELO HORIZONTE",
+  "state": "MG",
+  "zipCode": "30150270",
+  "phone": "(3134315686) 3134315686",
+  "naturezaJuridica": "Sociedade Anônima Aberta",
+  "partners": [
+    {
+      "name": "EDUARDO FERREIRA QUINTELLA",
+      "cpfCnpj": "",
+      "qualification": "Diretor",
+      "sharePercentage": 0
+    },
+    {
+      "name": "GUILHERME DE REZENDE CASTANHEIRA",
+      "cpfCnpj": "",
+      "qualification": "Diretor",
+      "sharePercentage": 0
+    },
+    {
+      "name": "JOAO ADRIANO PONCIANO NOBRE",
+      "cpfCnpj": "",
+      "qualification": "Diretor",
+      "sharePercentage": 0
+    },
+    {
+      "name": "LAURA RIBEIRO HENRIQUES",
+      "cpfCnpj": "",
+      "qualification": "Diretor",
+      "sharePercentage": 0
+    },
+    {
+      "name": "PAULO HENRIQUE MARTINS DE SOUSA",
+      "cpfCnpj": "",
+      "qualification": "Diretor",
+      "sharePercentage": 0
+    },
+    {
+      "name": "RAFAEL PASSOS VALADARES",
+      "cpfCnpj": "",
+      "qualification": "Diretor",
+      "sharePercentage": 0
+    },
+    {
+      "name": "RICARDO RIBEIRO VALADARES GONTIJO",
+      "cpfCnpj": "",
+      "qualification": "Presidente",
+      "sharePercentage": 0
+    }
+  ]
+}

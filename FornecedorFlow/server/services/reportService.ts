@@ -9,147 +9,339 @@ interface ReportData {
 
 class ReportService {
   async generatePDF(data: ReportData): Promise<Buffer> {
-    try {
-      return new Promise((resolve, reject) => {
-        const doc = new PDFDocument();
+    return new Promise((resolve, reject) => {
+      try {
+        const doc = new PDFDocument({ bufferPages: true });
         const chunks: Buffer[] = [];
-        
-        // Collect PDF data
+
         doc.on('data', (chunk) => chunks.push(chunk));
         doc.on('end', () => resolve(Buffer.concat(chunks)));
         doc.on('error', reject);
-        
-        // Generate PDF content
-        this.buildPDFContent(doc, data);
-        
-        // Finalize the PDF
+
+        try {
+          this.buildPDFContent(doc, data);
+        } catch (contentError) {
+          console.error('Error building PDF content:', contentError);
+        }
+
         doc.end();
-      });
-      
-    } catch (error) {
-      console.error('Error generating PDF:', error);
-      throw new Error('Failed to generate PDF report');
-    }
+      } catch (error) {
+        console.error('Error generating PDF:', error);
+        reject(new Error('Failed to generate PDF report'));
+      }
+    });
+  }
+
+  async generateConsolidatedPDF(records: ReportData[]): Promise<Buffer> {
+    return new Promise((resolve, reject) => {
+      try {
+        const doc = new PDFDocument({ bufferPages: true, margin: 50 });
+        const chunks: Buffer[] = [];
+
+        doc.on('data', (chunk) => chunks.push(chunk));
+        doc.on('end', () => resolve(Buffer.concat(chunks)));
+        doc.on('error', reject);
+
+        try {
+          const now = new Date().toLocaleDateString('pt-BR', {
+            day: '2-digit', month: '2-digit', year: 'numeric',
+            hour: '2-digit', minute: '2-digit'
+          });
+
+          // ─── COVER PAGE ────────────────────────────────────────────────
+          doc.rect(0, 0, 612, 792).fill('#111827');
+
+          doc.fillColor('white').fontSize(28).font('Helvetica-Bold')
+            .text('FORNECEDOR FLOW', 50, 200, { align: 'center', width: 512 });
+
+          doc.fontSize(16).font('Helvetica')
+            .text('Relatório Consolidado de Fornecedores', 50, 245, { align: 'center', width: 512 });
+
+          doc.moveTo(150, 280).lineTo(462, 280).stroke('#4B5563');
+
+          doc.fontSize(11).fillColor('#9CA3AF')
+            .text(`Gerado em ${now}`, 50, 295, { align: 'center', width: 512 });
+
+          // Stats on cover
+          const total = records.length;
+          const approved = records.filter(r => r.validation.status === 'approved').length;
+          const attention = records.filter(r => r.validation.status === 'attention').length;
+          const rejected = records.filter(r => r.validation.status === 'rejected').length;
+          const avgScore = total > 0
+            ? Math.round(records.reduce((s, r) => s + r.validation.score, 0) / total)
+            : 0;
+
+          const statsY = 360;
+          const statItems = [
+            { label: 'Total', value: total.toString(), color: '#FFFFFF' },
+            { label: 'Aprovados', value: approved.toString(), color: '#22c55e' },
+            { label: 'Atenção', value: attention.toString(), color: '#f59e0b' },
+            { label: 'Reprovados', value: rejected.toString(), color: '#ef4444' },
+            { label: 'Score Médio', value: avgScore.toString(), color: '#60a5fa' },
+          ];
+
+          statItems.forEach((item, idx) => {
+            const x = 76 + idx * 96;
+            doc.fillColor(item.color).fontSize(28).font('Helvetica-Bold')
+              .text(item.value, x, statsY, { width: 76, align: 'center' });
+            doc.fillColor('#9CA3AF').fontSize(9).font('Helvetica')
+              .text(item.label, x, statsY + 38, { width: 76, align: 'center' });
+          });
+
+          doc.fillColor('#374151').fontSize(10)
+            .text('Este documento contém a análise consolidada de todos os fornecedores validados.',
+              50, 480, { align: 'center', width: 512 });
+          doc.text('Cada fornecedor é apresentado com score de risco, dados cadastrais e análise detalhada.',
+            50, 498, { align: 'center', width: 512 });
+
+          // ─── ONE PAGE PER SUPPLIER ─────────────────────────────────────
+          for (const record of records) {
+            doc.addPage();
+            this.buildPDFContent(doc, record);
+          }
+
+        } catch (contentError) {
+          console.error('Error building consolidated PDF content:', contentError);
+        }
+
+        doc.end();
+      } catch (error) {
+        console.error('Error generating consolidated PDF:', error);
+        reject(new Error('Failed to generate consolidated PDF report'));
+      }
+    });
   }
 
   private buildPDFContent(doc: typeof PDFDocument, data: ReportData): void {
     const { validation, supplier, partners } = data;
-    const createdDate = validation.createdAt ? new Date(validation.createdAt).toLocaleDateString('pt-BR') : '';
-    
-    // Header
-    doc.fontSize(20).text('Relatório de Validação de Fornecedor', { align: 'center' });
-    doc.moveDown();
-    
-    // Company name
-    doc.fontSize(16).text(supplier?.companyName || '', { align: 'center' });
-    doc.fontSize(12).text(`CNPJ: ${supplier?.cnpj || ''}`, { align: 'center' });
-    doc.text(`Data da Análise: ${createdDate}`, { align: 'center' });
-    doc.moveDown();
-    
-    // Score and status
-    doc.fontSize(24).fillColor(this.getScoreColorHex(validation.score))
-       .text(`Score: ${validation.score}/100`, { align: 'center' });
-    doc.fillColor('black').fontSize(14)
-       .text(`Status: ${this.getStatusText(validation.status)}`, { align: 'center' });
-    doc.moveDown(2);
-    
-    // Company information section
+    const createdDate = validation.createdAt ? new Date(validation.createdAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+    const scoreColor = this.getScoreColorHex(validation.score);
+
+    // --- Header ---
+    doc.rect(0, 0, 612, 70).fill('#111827');
+    doc.fillColor('white').fontSize(18).font('Helvetica-Bold').text('FORNECEDOR FLOW', 50, 25);
+    doc.fontSize(10).font('Helvetica').text('Relatório de Auditoria Digital', 50, 45);
+    doc.fontSize(10).text(`Gerado em ${createdDate}`, 430, 35, { align: 'right' });
+
+    doc.moveDown(4);
+
+    // --- Summary Section (Score Card) ---
+    const startY = doc.y;
+    doc.rect(50, startY, 512, 120).fill('#F9FAFB').stroke('#E5E7EB');
+
+    // Left side: Score
+    doc.fillColor(scoreColor).fontSize(48).font('Helvetica-Bold').text(validation.score.toString(), 90, startY + 25);
+    doc.fontSize(12).fillColor('#6B7280').font('Helvetica').text('Score Total', 90, startY + 80);
+
+    // Divider
+    doc.moveTo(180, startY + 20).lineTo(180, startY + 100).stroke('#E5E7EB');
+
+    // Right side: Company Name & Status
+    doc.fillColor('#111827').fontSize(18).font('Helvetica-Bold').text(supplier?.companyName || 'N/A', 200, startY + 30, { width: 340 });
+    doc.fontSize(12).fillColor(scoreColor).text(`${this.getStatusText(validation.status)}`, 200, startY + 75);
+
+    doc.moveDown(7);
+
+    // --- Main Data Sections ---
+
+    // 1. Informações Cadastrais
     this.addSection(doc, 'Informações Cadastrais');
-    this.addTableRow(doc, 'Razão Social:', supplier?.companyName || '');
+    doc.moveDown(0.2);
+    this.addTableRow(doc, 'Razão Social:', supplier?.companyName || 'N/A');
     this.addTableRow(doc, 'Nome Fantasia:', supplier?.tradeName || 'N/A');
-    this.addTableRow(doc, 'Status Legal:', supplier?.legalStatus || '');
-    this.addTableRow(doc, 'Situação:', supplier?.legalSituation || '');
-    this.addTableRow(doc, 'Porte:', supplier?.companySize || '');
-    this.addTableRow(doc, 'CNAE:', `${supplier?.cnaeCode || ''} - ${supplier?.cnaeDescription || ''}`);
-    this.addTableRow(doc, 'Data de Abertura:', supplier?.openingDate ? new Date(supplier.openingDate).toLocaleDateString('pt-BR') : '');
+    this.addTableRow(doc, 'CNPJ:', supplier?.cnpj || 'N/A');
+    this.addTableRow(doc, 'Situação Cadastral:', supplier?.legalSituation || 'N/A');
+    this.addTableRow(doc, 'Data de Abertura:', supplier?.openingDate ? new Date(supplier.openingDate).toLocaleDateString('pt-BR') : 'N/A');
+    this.addTableRow(doc, 'Porte:', supplier?.companySize || 'N/A');
+    this.addTableRow(doc, 'CNAE Principal:', `${supplier?.cnaeCode || ''} - ${supplier?.cnaeDescription || ''}`);
     this.addTableRow(doc, 'Capital Social:', supplier?.shareCapital ? `R$ ${Number(supplier.shareCapital).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'R$ 0,00');
-    doc.moveDown();
-    
-    // Corporate structure
-    if (partners && partners.length > 0) {
+
+    // 2. Estrutura Societária (deduplicated by name)
+    const uniquePartners = partners
+      ? partners.filter((p, idx, arr) => arr.findIndex(x => x.name === p.name) === idx)
+      : [];
+    if (uniquePartners.length > 0) {
+      doc.moveDown(1);
       this.addSection(doc, 'Estrutura Societária');
-      partners.forEach(partner => {
-        this.addTableRow(doc, partner.name, partner.qualification || 'N/A');
+      doc.moveDown(0.2);
+      uniquePartners.forEach(partner => {
+        const share = partner.sharePercentage && Number(partner.sharePercentage) > 0 ? ` (${partner.sharePercentage}%)` : '';
+        this.addTableRow(doc, partner.name, `${partner.qualification || 'Sócio'}${share}`);
       });
-      doc.moveDown();
     }
-    
-    // Address information
-    this.addSection(doc, 'Endereço');
+
+    // 3. Localização e Contato
+    doc.moveDown(1);
+    this.addSection(doc, 'Localização e Contato');
+    doc.moveDown(0.2);
     this.addTableRow(doc, 'Endereço:', supplier?.address || 'N/A');
-    this.addTableRow(doc, 'Cidade:', supplier?.city || 'N/A');
-    this.addTableRow(doc, 'Estado:', supplier?.state || 'N/A');
-    this.addTableRow(doc, 'CEP:', supplier?.zipCode || 'N/A');
+    this.addTableRow(doc, 'Cidade/UF:', `${supplier?.city || 'N/A'} - ${supplier?.state || 'N/A'}`);
     this.addTableRow(doc, 'Telefone:', supplier?.phone || 'N/A');
-    this.addTableRow(doc, 'Email:', supplier?.email || 'N/A');
-    doc.moveDown();
-    
-    // Risk analysis
-    this.addSection(doc, 'Análise de Risco');
-    this.addTableRow(doc, 'Score Final:', `${validation.score}/100`);
-    this.addTableRow(doc, 'Classificação:', this.getStatusText(validation.status));
-    this.addTableRow(doc, 'Categoria:', validation.category || 'Geral');
-    this.addTableRow(doc, 'Fonte dos Dados:', validation.dataSource || 'APIs Públicas');
-    
-    if (validation.processingTime) {
-      this.addTableRow(doc, 'Tempo de Processamento:', `${validation.processingTime}ms`);
-    }
-    doc.moveDown();
-    
-    // Financial health
+    this.addTableRow(doc, 'E-mail:', supplier?.email || 'N/A');
+
+    // Check if we need a new page for detailed analysis
+    if (doc.y > 550) doc.addPage();
+
+    // 4. Análise de Saúde Financeira
+    doc.moveDown(1);
+    this.addSection(doc, 'Saúde Financeira');
+    doc.moveDown(0.2);
     if (validation.financialHealth) {
-      this.addFinancialHealthPDF(doc, validation.financialHealth);
+      const fh = validation.financialHealth as any;
+      this.addTableRow(doc, 'Score de Crédito Estimado:', fh.serasaScore?.toString() || 'Pendente');
+      this.addTableRow(doc, 'Pendências Financeiras:', fh.protests?.length > 0 ? `${fh.protests.length} Registro(s)` : 'Nenhuma');
+      this.addTableRow(doc, 'Ocorrências de Falência:', fh.bankruptcies?.length > 0 ? `${fh.bankruptcies.length} Registro(s)` : 'Nenhuma');
+      this.addTableRow(doc, 'Recuperação Judicial:', fh.judicialRecovery ? 'Identificado' : 'Não Consta');
+    } else {
+      doc.fontSize(10).fillColor('#6B7280').text('Dados financeiros não disponíveis no momento.');
     }
-    
-    // Certificates
+
+    // 5. Regularidade Fiscal (Certidões)
+    doc.moveDown(1);
+    this.addSection(doc, 'Regularidade Fiscal');
+    doc.moveDown(0.2);
     if (validation.certificates) {
-      this.addCertificatesPDF(doc, validation.certificates);
+      const certs = validation.certificates as any;
+      const formatCert = (c: any) => {
+        if (!c) return 'Pendente';
+        const status = c.status === 'valid' ? 'Regular' : c.status;
+        return `${status} (Validade: ${c.expiryDate ? new Date(c.expiryDate).toLocaleDateString('pt-BR') : 'N/A'})`;
+      };
+
+      this.addTableRow(doc, 'Tributos Federais:', formatCert(certs.federal));
+      this.addTableRow(doc, 'Tributos Estaduais:', formatCert(certs.state));
+      this.addTableRow(doc, 'Tributos Municipais:', formatCert(certs.municipal));
+      this.addTableRow(doc, 'Débitos Trabalhistas (CNDT):', formatCert(certs.labor));
     }
-    
-    // Footer
-    doc.moveDown();
-    doc.fontSize(10).fillColor('gray')
-       .text('Este relatório foi gerado automaticamente pelo sistema ValidaFornecedor.', { align: 'center' });
-    doc.text('Os dados foram coletados de fontes públicas e APIs especializadas.', { align: 'center' });
-    doc.text('Recomenda-se realizar nova validação periodicamente para manter as informações atualizadas.', { align: 'center' });
+
+    // 6. Análise de Risco
+    const riskData = (validation.riskAnalysis as any) || null;
+    doc.moveDown(1);
+    this.addSection(doc, 'Análise de Risco e Compliance');
+    doc.moveDown(0.2);
+
+    if (riskData) {
+      // Score + Level row
+      const scoreLabel = `Score de Compliance: ${riskData.complianceScore ?? 'N/A'}/100`;
+      const riskLevel = riskData.riskLevel || 'N/A';
+      if (doc.y > 720) doc.addPage();
+      const riskY = doc.y;
+      doc.rect(65, riskY, 480, 20).fill('#F3F4F6');
+      doc.fillColor('#111827').fontSize(10).font('Helvetica-Bold')
+        .text(scoreLabel, 70, riskY + 4, { width: 240 });
+      doc.fillColor(this.getRiskLevelColor(riskLevel)).fontSize(10).font('Helvetica-Bold')
+        .text(`Nível: ${riskLevel}`, 310, riskY + 4, { width: 220, align: 'right' });
+      doc.y = riskY + 26;
+
+      // Compliance checks
+      const checks = (riskData.complianceChecks as any) || {};
+      const checkItems = [
+        { label: 'CEIS (Inidôneas/Suspensas)', value: checks.ceis ? '⚠ ENCONTRADO' : 'Limpo', bad: !!checks.ceis },
+        { label: 'CNEP (Empresas Punidas)', value: checks.cnep ? '⚠ ENCONTRADO' : 'Limpo', bad: !!checks.cnep },
+        { label: 'Lista de Sanções (CGU)', value: checks.sanctionList ? '⚠ ENCONTRADO' : 'Limpo', bad: !!checks.sanctionList },
+        { label: 'Trabalho Escravo (MTE)', value: checks.workSlavery ? '⚠ ENCONTRADO' : 'Limpo', bad: !!checks.workSlavery },
+        { label: 'Pessoa Politicamente Exposta', value: checks.pep ? 'SIM' : 'Não', bad: !!checks.pep },
+      ];
+      checkItems.forEach(item => {
+        if (doc.y > 720) doc.addPage();
+        const cy = doc.y;
+        doc.fillColor('#6B7280').fontSize(9).font('Helvetica').text(item.label, 65, cy, { width: 300 });
+        doc.fillColor(item.bad ? '#ef4444' : '#22c55e').fontSize(9).font('Helvetica-Bold')
+          .text(item.value, 370, cy, { width: 175, align: 'right' });
+        doc.y = cy + 14;
+      });
+
+      // Risk factors
+      const factors: string[] = riskData.riskFactors || [];
+      if (factors.length > 0) {
+        doc.moveDown(0.5);
+        if (doc.y > 720) doc.addPage();
+        doc.fillColor('#111827').fontSize(9).font('Helvetica-Bold').text('Fatores de Risco Identificados:', 65);
+        doc.moveDown(0.2);
+        factors.forEach((f: string) => {
+          if (doc.y > 720) doc.addPage();
+          doc.fillColor('#92400e').fontSize(9).font('Helvetica').text(`• ${f}`, 75, doc.y, { width: 460 });
+          doc.y = doc.y + 13;
+        });
+      }
+
+      // Recommendations
+      const recs: string[] = riskData.recommendations || [];
+      if (recs.length > 0) {
+        doc.moveDown(0.5);
+        if (doc.y > 720) doc.addPage();
+        doc.fillColor('#111827').fontSize(9).font('Helvetica-Bold').text('Recomendações:', 65);
+        doc.moveDown(0.2);
+        recs.forEach((r: string) => {
+          if (doc.y > 720) doc.addPage();
+          doc.fillColor('#1d4ed8').fontSize(9).font('Helvetica').text(`• ${r}`, 75, doc.y, { width: 460 });
+          doc.y = doc.y + 13;
+        });
+      }
+
+      // Data sources
+      doc.moveDown(0.4);
+      const sources = (riskData.dataSourcers as string[]) || [];
+      if (sources.length > 0) {
+        doc.fillColor('#9CA3AF').fontSize(8).font('Helvetica')
+          .text(`Fontes: ${sources.join(', ')}`, 65, doc.y, { width: 480 });
+        doc.y = doc.y + 12;
+      }
+    } else {
+      doc.fillColor('#9CA3AF').fontSize(9).font('Helvetica')
+        .text('Análise de risco não disponível para esta consulta.', 65);
+      doc.y = doc.y + 14;
+    }
+
+    // 7. Informações de Mercado (B3)
+    const marketData = (validation.financialMarketData as any) || null;
+    doc.moveDown(1);
+    this.addSection(doc, 'Informações de Mercado (B3)');
+    doc.moveDown(0.2);
+    this.addTableRow(doc, 'Ticker:', marketData?.ticker || 'N/D');
+    this.addTableRow(doc, 'Preço da Ação:', marketData?.price ? `${marketData.currency || 'BRL'} ${Number(marketData.price).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'N/D');
+    this.addTableRow(doc, 'Valuation (Market Cap):', marketData?.marketCap ? `${marketData.currency || 'BRL'} ${Number(marketData.marketCap).toLocaleString('pt-BR', { notation: 'compact', maximumFractionDigits: 2 })}` : 'N/D');
+    this.addTableRow(doc, 'Fonte:', marketData?.source ? `${marketData.source} (Atualizado em: ${marketData.updatedAt ? new Date(marketData.updatedAt).toLocaleDateString('pt-BR') : 'N/A'})` : 'B3 / HG Brasil / Brapi (Empresa sem capital aberto)');
+
+
+    // Footer note on last page
+    doc.moveDown(2);
+    doc.fontSize(8).fillColor('#9CA3AF').font('Helvetica')
+      .text('Fornecedor Flow - Tecnologia de Gestão de Risco e Compliance', { align: 'center' });
+    doc.text(`Relatório gerado em ${new Date().toLocaleDateString('pt-BR')}`, { align: 'center' });
   }
 
   private addSection(doc: typeof PDFDocument, title: string): void {
-    doc.fontSize(14).fillColor('black').text(title, { underline: true });
+    const y = doc.y;
+    doc.rect(50, y, 5, 14).fill('#2563EB'); // Blue accent
+    doc.fillColor('#111827').fontSize(12).font('Helvetica-Bold').text(title, 65, y);
+    doc.moveTo(50, y + 16).lineTo(562, y + 16).stroke('#E5E7EB');
     doc.moveDown(0.5);
   }
 
   private addTableRow(doc: typeof PDFDocument, label: string, value: string): void {
-    const y = doc.y;
-    doc.fontSize(10).text(label, 50, y, { width: 150 });
-    doc.text(value, 200, y, { width: 300 });
-    doc.moveDown(0.3);
-  }
+    const LINE_HEIGHT = 11;  // px per line at fontSize 9
+    const LABEL_WIDTH = 140;
+    const VALUE_WIDTH = 350;
+    const PADDING = 4;
 
-  private addFinancialHealthPDF(doc: typeof PDFDocument, financialHealth: any): void {
-    this.addSection(doc, 'Saúde Financeira');
-    this.addTableRow(doc, 'Score Serasa:', financialHealth.serasaScore?.toString() || 'N/A');
-    this.addTableRow(doc, 'Protestos:', financialHealth.protests?.length?.toString() || '0');
-    this.addTableRow(doc, 'Falências:', financialHealth.bankruptcies?.length?.toString() || '0');
-    this.addTableRow(doc, 'Recuperação Judicial:', financialHealth.judicialRecovery ? 'Sim' : 'Não');
-    doc.moveDown();
-  }
+    // Estimate number of lines needed for each column
+    const avgCharWidth = 5; // rough estimate at 9pt Helvetica
+    const labelLines = Math.max(1, Math.ceil((label.length * avgCharWidth) / LABEL_WIDTH));
+    const valueLines = Math.max(1, Math.ceil((value.length * avgCharWidth) / VALUE_WIDTH));
+    const rowHeight = Math.max(labelLines, valueLines) * LINE_HEIGHT + PADDING;
 
-  private addCertificatesPDF(doc: typeof PDFDocument, certificates: any): void {
-    this.addSection(doc, 'Regularidade Fiscal');
-    if (certificates.federal) {
-      this.addTableRow(doc, 'Federal:', `${certificates.federal.status} - ${certificates.federal.expiryDate ? new Date(certificates.federal.expiryDate).toLocaleDateString('pt-BR') : 'N/A'}`);
-    }
-    if (certificates.state) {
-      this.addTableRow(doc, 'Estadual:', `${certificates.state.status} - ${certificates.state.expiryDate ? new Date(certificates.state.expiryDate).toLocaleDateString('pt-BR') : 'N/A'}`);
-    }
-    if (certificates.municipal) {
-      this.addTableRow(doc, 'Municipal:', `${certificates.municipal.status} - ${certificates.municipal.expiryDate ? new Date(certificates.municipal.expiryDate).toLocaleDateString('pt-BR') : 'N/A'}`);
-    }
-    if (certificates.labor) {
-      this.addTableRow(doc, 'Trabalhista:', `${certificates.labor.status} - ${certificates.labor.expiryDate ? new Date(certificates.labor.expiryDate).toLocaleDateString('pt-BR') : 'N/A'}`);
-    }
-    doc.moveDown();
+    // If not enough space on the page, add a new page
+    if (doc.y + rowHeight > 730) doc.addPage();
+
+    const rowY = doc.y;
+    doc.fillColor('#6B7280').fontSize(9).font('Helvetica')
+      .text(label, 65, rowY, { width: LABEL_WIDTH, lineGap: 1 });
+    doc.fillColor('#111827').fontSize(9).font('Helvetica-Bold')
+      .text(value, 210, rowY, { width: VALUE_WIDTH, lineGap: 1 });
+
+    // Move to the position AFTER the tallest column + padding
+    doc.y = rowY + rowHeight;
   }
 
   private getScoreColorHex(score: number): string {
@@ -158,10 +350,17 @@ class ReportService {
     return '#ef4444'; // red
   }
 
+  private getRiskLevelColor(level: string): string {
+    if (level === 'BAIXO') return '#22c55e';
+    if (level === 'MÉDIO') return '#f59e0b';
+    if (level === 'ALTO') return '#ef4444';
+    return '#dc2626'; // CRÍTICO
+  }
+
   private generateHTMLReport(data: ReportData): string {
     const { validation, supplier, partners } = data;
     const createdDate = validation.createdAt?.toLocaleDateString('pt-BR') || '';
-    
+
     return `
     <!DOCTYPE html>
     <html lang="pt-BR">
@@ -210,13 +409,28 @@ class ReportService {
             <h2>Estrutura Societária</h2>
             <table>
                 <tr><th>Nome</th><th>Qualificação</th><th>Participação</th></tr>
-                ${partners.map(partner => `
+                ${(() => {
+        const uniquePartners = partners.reduce((acc: any[], current: any) => {
+          const exists = acc.find((p: any) => p.name === current.name);
+          if (!exists) acc.push(current);
+          else {
+            const existingIndex = acc.findIndex((p: any) => p.name === current.name);
+            const hasMoreInfo =
+              (current.cpfCnpj && !exists.cpfCnpj) ||
+              (current.sharePercentage > 0 && !exists.sharePercentage) ||
+              (/\\d/.test(current.qualification || '') && !/\\d/.test(exists.qualification || ''));
+            if (hasMoreInfo) acc[existingIndex] = current;
+          }
+          return acc;
+        }, []);
+        return uniquePartners.map((partner: any) => `
                     <tr>
                         <td>${partner.name}</td>
                         <td>${partner.qualification || 'N/A'}</td>
                         <td>${partner.sharePercentage && Number(partner.sharePercentage) > 0 ? partner.sharePercentage : 'N/A'}</td>
                     </tr>
-                `).join('')}
+                  `).join('');
+      })()}
             </table>
         </div>
 
@@ -277,7 +491,7 @@ class ReportService {
 
   private generateFinancialHealthSection(financialHealth: any): string {
     if (!financialHealth) return '';
-    
+
     return `
         <div class="section">
             <h2>Saúde Financeira</h2>
@@ -293,7 +507,7 @@ class ReportService {
 
   private generateCertificatesSection(certificates: any): string {
     if (!certificates) return '';
-    
+
     return `
         <div class="section">
             <h2>Regularidade Fiscal</h2>
@@ -310,7 +524,7 @@ class ReportService {
 
   private generateLegalIssuesSection(legalIssues: any): string {
     if (!legalIssues) return '';
-    
+
     return `
         <div class="section">
             <h2>Questões Legais</h2>
@@ -325,7 +539,7 @@ class ReportService {
 
   private generateRiskAnalysisSection(riskAnalysis: any): string {
     if (!riskAnalysis) return '';
-    
+
     return `
         <div class="section">
             <h2>Detalhes da Análise de Risco</h2>
@@ -365,7 +579,7 @@ class ReportService {
   generateExcelReport(validations: any[]): Buffer {
     // This would implement Excel generation using libraries like ExcelJS
     // For now, return a CSV format as a simple implementation
-    
+
     const headers = [
       'Data',
       'Empresa',

@@ -42,29 +42,53 @@ class PublicApisService {
 
   async getCnpjData(cnpj: string): Promise<PublicCnpjData | null> {
     const cleanCnpj = cnpj.replace(/\D/g, '');
-    
-    // Tentar CNPJá API primeiro (mais estável)
+
+    // Estratégia de fallback com múltiplas APIs gratuitas
+
+    // 1. Tentar OpenCNPJ API primeiro (50 req/s, sem autenticação, open source)
     try {
+      console.log('🔍 Trying OpenCNPJ API...');
+      const openCnpjData = await this.getOpenCnpjData(cleanCnpj);
+      if (openCnpjData) return openCnpjData;
+    } catch (error) {
+      console.warn('❌ OpenCNPJ API failed:', error);
+    }
+
+    // 2. Tentar BrasilAPI (API brasileira consolidada, open source)
+    try {
+      console.log('🔍 Trying BrasilAPI...');
+      const brasilApiData = await this.getBrasilApiData(cleanCnpj);
+      if (brasilApiData) return brasilApiData;
+    } catch (error) {
+      console.warn('❌ BrasilAPI failed:', error);
+    }
+
+    // 3. Tentar CNPJá API (5-10 req/min)
+    try {
+      console.log('🔍 Trying CNPJá API...');
       const cnpjaData = await this.getCnpjaData(cleanCnpj);
       if (cnpjaData) return cnpjaData;
     } catch (error) {
-      console.warn('CNPJá API failed:', error);
+      console.warn('❌ CNPJá API failed:', error);
     }
 
-    // Fallback para ReceitaWS
+    // 4. Fallback para ReceitaWS (3 req/min)
     try {
+      console.log('🔍 Trying ReceitaWS...');
       const receitaData = await this.getReceitaWsData(cleanCnpj);
       if (receitaData) return receitaData;
     } catch (error) {
-      console.warn('ReceitaWS API failed:', error);
+      console.warn('❌ ReceitaWS API failed:', error);
     }
 
+    console.error('❌ All public APIs failed for CNPJ:', cleanCnpj);
     return null;
   }
 
-  private async getCnpjaData(cnpj: string): Promise<PublicCnpjData | null> {
-    const url = `https://api.cnpja.com/office/${cnpj}`;
-    
+  // OpenCNPJ API - 50 req/s, sem autenticação
+  private async getOpenCnpjData(cnpj: string): Promise<PublicCnpjData | null> {
+    const url = `https://api.opencnpj.org/v1/${cnpj}`;
+
     const response = await axios.get(url, {
       timeout: 15000,
       headers: {
@@ -78,11 +102,133 @@ class PublicApisService {
     }
 
     const data = response.data;
-    
-    // Detectar recuperação judicial pela situação e nome da empresa
+
+    // Detectar recuperação judicial
+    const situacao = data.descricao_situacao_cadastral || '';
+    const razaoSocial = data.razao_social || '';
+    const socios = data.qsa || [];
+    const isJudicialRecovery = this.detectJudicialRecovery(situacao, razaoSocial, socios);
+
+    return {
+      cnpj: this.formatCnpj(cnpj),
+      razaoSocial: data.razao_social || '',
+      nomeFantasia: data.nome_fantasia || '',
+      situacao: situacao,
+      dataAbertura: data.data_inicio_atividade || '',
+      endereco: {
+        logradouro: data.logradouro || '',
+        numero: data.numero || '',
+        bairro: data.bairro || '',
+        municipio: data.municipio || '',
+        uf: data.uf || '',
+        cep: data.cep || '',
+      },
+      telefones: data.ddd_telefone_1 ? [`(${data.ddd_telefone_1}) ${data.telefone_1}`] : [],
+      emails: data.correio_eletronico ? [data.correio_eletronico] : [],
+      cnae: {
+        principal: {
+          codigo: data.cnae_fiscal || '',
+          descricao: data.cnae_fiscal_descricao || '',
+        },
+        secundarias: [],
+      },
+      socios: (data.qsa || []).map((socio: any) => ({
+        nome: socio.nome_socio || '',
+        qualificacao: socio.qualificacao_socio || '',
+      })),
+      capitalSocial: parseFloat(data.capital_social?.toString().replace(/[^\d,]/g, '').replace(',', '.') || '0'),
+      porte: data.porte || '',
+      naturezaJuridica: data.natureza_juridica || '',
+      isJudicialRecovery,
+      source: 'OpenCNPJ API',
+    };
+  }
+
+  // BrasilAPI - API brasileira consolidada, open source
+  private async getBrasilApiData(cnpj: string): Promise<PublicCnpjData | null> {
+    const url = `https://brasilapi.com.br/api/cnpj/v1/${cnpj}`;
+
+    const response = await axios.get(url, {
+      timeout: 15000,
+      headers: {
+        'User-Agent': 'ValidaFornecedor/1.0',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (response.status !== 200 || !response.data) {
+      return null;
+    }
+
+    const data = response.data;
+
+    // Detectar recuperação judicial
+    const situacao = data.descricao_situacao_cadastral || '';
+    const razaoSocial = data.razao_social || '';
+    const socios = data.qsa || [];
+    const isJudicialRecovery = this.detectJudicialRecovery(situacao, razaoSocial, socios);
+
+    return {
+      cnpj: this.formatCnpj(cnpj),
+      razaoSocial: data.razao_social || '',
+      nomeFantasia: data.nome_fantasia || '',
+      situacao: situacao,
+      dataAbertura: data.data_inicio_atividade || '',
+      endereco: {
+        logradouro: data.descricao_tipo_de_logradouro + ' ' + data.logradouro || '',
+        numero: data.numero || '',
+        bairro: data.bairro || '',
+        municipio: data.municipio || '',
+        uf: data.uf || '',
+        cep: data.cep || '',
+      },
+      telefones: data.ddd_telefone_1 ? [`(${data.ddd_telefone_1}) ${data.ddd_telefone_2 || data.ddd_telefone_1}`] : [],
+      emails: [],
+      cnae: {
+        principal: {
+          codigo: data.cnae_fiscal?.toString() || '',
+          descricao: data.cnae_fiscal_descricao || '',
+        },
+        secundarias: (data.cnaes_secundarios || []).map((cnae: any) => ({
+          codigo: cnae.codigo?.toString() || '',
+          descricao: cnae.descricao || '',
+        })),
+      },
+      socios: (data.qsa || []).map((socio: any) => ({
+        nome: socio.nome_socio || '',
+        qualificacao: socio.qualificacao_socio || '',
+      })),
+      capitalSocial: parseFloat(data.capital_social?.toString().replace(/[^\d,]/g, '').replace(',', '.') || '0'),
+      porte: data.porte || '',
+      naturezaJuridica: data.natureza_juridica || '',
+      isJudicialRecovery,
+      source: 'BrasilAPI',
+    };
+  }
+
+  // CNPJá API - 5-10 req/min
+  private async getCnpjaData(cnpj: string): Promise<PublicCnpjData | null> {
+    const url = `https://api.cnpja.com/office/${cnpj}`;
+
+    const response = await axios.get(url, {
+      timeout: 15000,
+      headers: {
+        'User-Agent': 'ValidaFornecedor/1.0',
+        'Accept': 'application/json',
+      },
+    });
+
+    if (response.status !== 200 || !response.data) {
+      return null;
+    }
+
+    const data = response.data;
+
+    // Detectar recuperação judicial pela situação, nome da empresa e sócios
     const situacao = data.status?.text || '';
     const razaoSocial = data.company?.name || '';
-    const isJudicialRecovery = this.detectJudicialRecovery(situacao, razaoSocial);
+    const socios = data.members || [];
+    const isJudicialRecovery = this.detectJudicialRecovery(situacao, razaoSocial, socios);
 
     return {
       cnpj: this.formatCnpj(cnpj),
@@ -139,10 +285,11 @@ class PublicApisService {
 
     const data = response.data;
     
-    // Detectar recuperação judicial pela situação e nome da empresa
+    // Detectar recuperação judicial pela situação, nome da empresa e sócios
     const situacao = data.situacao || '';
     const razaoSocial = data.nome || '';
-    const isJudicialRecovery = this.detectJudicialRecovery(situacao, razaoSocial);
+    const socios = data.qsa || [];
+    const isJudicialRecovery = this.detectJudicialRecovery(situacao, razaoSocial, socios);
 
     return {
       cnpj: data.cnpj || this.formatCnpj(cnpj),
@@ -182,14 +329,14 @@ class PublicApisService {
     };
   }
 
-  private detectJudicialRecovery(situacao: string, razaoSocial?: string): boolean {
+  private detectJudicialRecovery(situacao: string, razaoSocial?: string, socios?: Array<any>): boolean {
     const situacaoLower = situacao.toLowerCase();
     const razaoSocialLower = razaoSocial?.toLowerCase() || '';
-    
+
     // Palavras-chave que indicam recuperação judicial
     const keywords = [
       'recuperação judicial',
-      'recuperacao judicial', 
+      'recuperacao judicial',
       'em recuperação',
       'em recuperacao',
       'rj',
@@ -200,15 +347,30 @@ class PublicApisService {
 
     // Verificar na situação cadastral
     const foundInSituacao = keywords.some(keyword => situacaoLower.includes(keyword));
-    
+
     // Verificar no nome da empresa (razão social)
     const foundInRazaoSocial = keywords.some(keyword => razaoSocialLower.includes(keyword));
-    
+
+    // 🆕 VERIFICAR NOS SÓCIOS
+    let foundInSocios = false;
+    let sociosComRJ: string[] = [];
+
+    if (socios && Array.isArray(socios)) {
+      for (const socio of socios) {
+        const nomeSocio = (socio.nome || socio.nome_socio || '').toLowerCase();
+        if (keywords.some(keyword => nomeSocio.includes(keyword))) {
+          foundInSocios = true;
+          sociosComRJ.push(socio.nome || socio.nome_socio);
+        }
+      }
+    }
+
     console.log(`🔍 Judicial recovery detection:
       - Situação: "${situacao}" -> ${foundInSituacao}
-      - Razão Social: "${razaoSocial}" -> ${foundInRazaoSocial}`);
+      - Razão Social: "${razaoSocial}" -> ${foundInRazaoSocial}
+      - Sócios em RJ: ${foundInSocios ? sociosComRJ.join(', ') : 'Nenhum'}`);
 
-    return foundInSituacao || foundInRazaoSocial;
+    return foundInSituacao || foundInRazaoSocial || foundInSocios;
   }
 
   private formatCnpj(cnpj: string): string {

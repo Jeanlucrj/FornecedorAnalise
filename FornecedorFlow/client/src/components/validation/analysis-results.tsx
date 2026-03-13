@@ -4,7 +4,7 @@ import { StatusBadge } from "@/components/ui/status-badge";
 import { downloadPDF } from "@/lib/pdfExport";
 import { useToast } from "@/hooks/use-toast";
 import ScoreCircle from "./score-circle";
-import { Download, Bell, FileCheck, BarChart3, CheckCircle, Users, Shield, AlertTriangle } from "lucide-react";
+import { Download, Bell, FileCheck, BarChart3, CheckCircle, Users, Shield, AlertTriangle, TrendingUp } from "lucide-react";
 
 interface AnalysisResultsProps {
   result: any;
@@ -46,9 +46,9 @@ export default function AnalysisResults({ result, onNewValidation }: AnalysisRes
   const formatCurrency = (value: number | string) => {
     if (!value) return 'R$ 0,00';
     const numValue = typeof value === 'string' ? parseFloat(value) : value;
-    return new Intl.NumberFormat('pt-BR', { 
-      style: 'currency', 
-      currency: 'BRL' 
+    return new Intl.NumberFormat('pt-BR', {
+      style: 'currency',
+      currency: 'BRL'
     }).format(numValue);
   };
 
@@ -61,8 +61,8 @@ export default function AnalysisResults({ result, onNewValidation }: AnalysisRes
             {/* Score Visualization */}
             <div className="flex flex-col items-center">
               <ScoreCircle score={validation.score} />
-              <StatusBadge 
-                status={validation.status} 
+              <StatusBadge
+                status={validation.status}
                 className="mt-4 px-3 py-1 text-sm font-medium"
               />
             </div>
@@ -102,14 +102,14 @@ export default function AnalysisResults({ result, onNewValidation }: AnalysisRes
 
             {/* Actions */}
             <div className="flex flex-col space-y-2">
-              <Button 
+              <Button
                 onClick={handleExportPDF}
                 data-testid="button-export-pdf"
               >
                 <Download className="w-4 h-4 mr-2" />
                 Exportar PDF
               </Button>
-              <Button 
+              <Button
                 variant="secondary"
                 onClick={handleScheduleMonitoring}
                 data-testid="button-schedule-monitoring"
@@ -134,8 +134,8 @@ export default function AnalysisResults({ result, onNewValidation }: AnalysisRes
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Situação RF</span>
-                <StatusBadge 
-                  status={supplier?.legalStatus === 'ATIVA' ? 'approved' : 'critical'} 
+                <StatusBadge
+                  status={supplier?.legalStatus === 'ATIVA' ? 'approved' : 'critical'}
                   size="sm"
                 />
               </div>
@@ -171,24 +171,24 @@ export default function AnalysisResults({ result, onNewValidation }: AnalysisRes
             <div className="space-y-3">
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Protestos</span>
-                <StatusBadge 
-                  status={analysis?.financialHealth?.protests?.length > 0 ? 'critical' : 'approved'} 
+                <StatusBadge
+                  status={analysis?.financialHealth?.protests?.length > 0 ? 'critical' : 'approved'}
                   size="sm"
                   text={analysis?.financialHealth?.protests?.length > 0 ? 'ENCONTRADOS' : 'NENHUM'}
                 />
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Falências</span>
-                <StatusBadge 
-                  status={analysis?.financialHealth?.bankruptcies?.length > 0 ? 'critical' : 'approved'} 
+                <StatusBadge
+                  status={analysis?.financialHealth?.bankruptcies?.length > 0 ? 'critical' : 'approved'}
                   size="sm"
                   text={analysis?.financialHealth?.bankruptcies?.length > 0 ? 'ENCONTRADAS' : 'NENHUMA'}
                 />
               </div>
               <div className="flex justify-between items-center">
                 <span className="text-sm text-muted-foreground">Recuperação Judicial</span>
-                <StatusBadge 
-                  status={analysis?.financialHealth?.judicialRecovery ? 'critical' : 'approved'} 
+                <StatusBadge
+                  status={analysis?.financialHealth?.judicialRecovery ? 'critical' : 'approved'}
                   size="sm"
                   text={analysis?.financialHealth?.judicialRecovery ? 'SIM' : 'NÃO'}
                 />
@@ -217,16 +217,16 @@ export default function AnalysisResults({ result, onNewValidation }: AnalysisRes
                 const cert = analysis?.certificates?.[certType];
                 const isValid = cert?.status === 'valid';
                 const isExpiring = cert?.status === 'expiring';
-                
+
                 return (
                   <div key={certType} className="flex justify-between items-center">
                     <span className="text-sm text-muted-foreground capitalize">
                       {certType === 'federal' ? 'Federal' :
-                       certType === 'state' ? 'Estadual' :
-                       certType === 'municipal' ? 'Municipal' : 'Trabalhista'}
+                        certType === 'state' ? 'Estadual' :
+                          certType === 'municipal' ? 'Municipal' : 'Trabalhista'}
                     </span>
-                    <StatusBadge 
-                      status={isValid ? 'approved' : isExpiring ? 'attention' : 'critical'} 
+                    <StatusBadge
+                      status={isValid ? 'approved' : isExpiring ? 'attention' : 'critical'}
                       size="sm"
                       text={isValid ? 'VÁLIDA' : isExpiring ? 'VENCENDO' : 'INVÁLIDA'}
                     />
@@ -238,13 +238,14 @@ export default function AnalysisResults({ result, onNewValidation }: AnalysisRes
         </Card>
 
         {/* Análise de Risco e Compliance */}
-        {analysis?.riskAnalysis && (
-          <Card>
-            <CardContent className="p-6">
-              <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center">
-                <Shield className="w-5 h-5 text-primary mr-2" />
-                Análise de Risco e Compliance
-              </h3>
+        <Card>
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center">
+              <Shield className="w-5 h-5 text-primary mr-2" />
+              Análise de Risco e Compliance
+            </h3>
+
+            {analysis?.riskAnalysis ? (
               <div className="space-y-4">
                 {/* Compliance Score */}
                 <div className="flex justify-between items-center p-3 bg-muted rounded-lg">
@@ -253,61 +254,66 @@ export default function AnalysisResults({ result, onNewValidation }: AnalysisRes
                     <span className="text-lg font-bold text-foreground">
                       {analysis.riskAnalysis.complianceScore}/100
                     </span>
-                    <StatusBadge 
-                      status={analysis.riskAnalysis.complianceScore >= 80 ? 'approved' : 
-                             analysis.riskAnalysis.complianceScore >= 50 ? 'attention' : 'critical'} 
+                    <StatusBadge
+                      status={analysis.riskAnalysis.complianceScore >= 80 ? 'approved' :
+                        analysis.riskAnalysis.complianceScore >= 50 ? 'attention' : 'critical'}
                       size="sm"
-                      text={analysis.riskAnalysis.complianceScore >= 80 ? 'EXCELENTE' : 
-                           analysis.riskAnalysis.complianceScore >= 50 ? 'ADEQUADO' : 'RISCO ALTO'}
+                      text={analysis.riskAnalysis.riskLevel || (
+                        analysis.riskAnalysis.complianceScore >= 80 ? 'BAIXO' :
+                          analysis.riskAnalysis.complianceScore >= 60 ? 'MÉDIO' :
+                            analysis.riskAnalysis.complianceScore >= 40 ? 'ALTO' : 'CRÍTICO'
+                      )}
                     />
                   </div>
                 </div>
 
                 {/* Compliance Checks */}
                 <div className="space-y-2">
-                  <h4 className="text-sm font-medium text-foreground">Verificações de Compliance</h4>
-                  
+                  <h4 className="text-sm font-medium text-foreground">Verificações Governamentais</h4>
+
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Lista de Sanções</span>
-                    <StatusBadge 
-                      status={analysis.riskAnalysis.complianceChecks.sanctionList ? 'critical' : 'approved'} 
+                    <span className="text-sm text-muted-foreground">CEIS (Inidôneas/Suspensas)</span>
+                    <StatusBadge
+                      status={analysis.riskAnalysis.complianceChecks?.ceis ? 'critical' : 'approved'}
+                      size="sm"
+                      text={analysis.riskAnalysis.complianceChecks?.ceis ? 'ENCONTRADO' : 'LIMPO'}
+                    />
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">CNEP (Empresas Punidas)</span>
+                    <StatusBadge
+                      status={analysis.riskAnalysis.complianceChecks?.cnep ? 'critical' : 'approved'}
+                      size="sm"
+                      text={analysis.riskAnalysis.complianceChecks?.cnep ? 'ENCONTRADO' : 'LIMPO'}
+                    />
+                  </div>
+
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-muted-foreground">Lista de Sanções (CGU)</span>
+                    <StatusBadge
+                      status={analysis.riskAnalysis.complianceChecks.sanctionList ? 'critical' : 'approved'}
                       size="sm"
                       text={analysis.riskAnalysis.complianceChecks.sanctionList ? 'ENCONTRADO' : 'LIMPO'}
                     />
                   </div>
-                  
+
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Pessoa Politicamente Exposta</span>
-                    <StatusBadge 
-                      status={analysis.riskAnalysis.complianceChecks.pep ? 'attention' : 'approved'} 
-                      size="sm"
-                      text={analysis.riskAnalysis.complianceChecks.pep ? 'SIM' : 'NÃO'}
-                    />
-                  </div>
-                  
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Trabalho Escravo</span>
-                    <StatusBadge 
-                      status={analysis.riskAnalysis.complianceChecks.workSlavery ? 'critical' : 'approved'} 
+                    <span className="text-sm text-muted-foreground">Trabalho Escravo (MTE)</span>
+                    <StatusBadge
+                      status={analysis.riskAnalysis.complianceChecks.workSlavery ? 'critical' : 'approved'}
                       size="sm"
                       text={analysis.riskAnalysis.complianceChecks.workSlavery ? 'ENCONTRADO' : 'LIMPO'}
                     />
                   </div>
-                  
+
                   <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Lista de Devedores</span>
-                    <StatusBadge 
-                      status={analysis.riskAnalysis.complianceChecks.debtorList ? 'attention' : 'approved'} 
+                    <span className="text-sm text-muted-foreground">Pessoa Politicamente Exposta</span>
+                    <StatusBadge
+                      status={analysis.riskAnalysis.complianceChecks.pep ? 'attention' : 'approved'}
                       size="sm"
-                      text={analysis.riskAnalysis.complianceChecks.debtorList ? 'ENCONTRADO' : 'LIMPO'}
+                      text={analysis.riskAnalysis.complianceChecks.pep ? 'SIM' : 'NÃO'}
                     />
-                  </div>
-                  
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-muted-foreground">Processos Legais</span>
-                    <span className="text-sm text-foreground">
-                      {analysis.riskAnalysis.complianceChecks.legalProcesses || 0} processo(s)
-                    </span>
                   </div>
                 </div>
 
@@ -342,18 +348,22 @@ export default function AnalysisResults({ result, onNewValidation }: AnalysisRes
                   </div>
                 )}
 
-                <div className="space-y-1">
-                  <div className="text-xs text-muted-foreground">
-                    Última atualização: {formatDate(analysis.riskAnalysis.lastUpdated)}
-                  </div>
-                  <div className="text-xs text-blue-600 dark:text-blue-400">
-                    Fontes: {analysis.riskAnalysis.dataSourcers?.join(', ') || 'Análise padrão'}
-                  </div>
+                <div className="text-xs text-muted-foreground pt-1 border-t border-border">
+                  Fontes: {analysis.riskAnalysis.dataSourcers?.join(', ') || 'Portal da Transparência'}
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            ) : (
+              <div className="space-y-2">
+                <p className="text-sm text-muted-foreground">
+                  ⚡ Análise rápida — verificações governamentais não executadas.
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  Utilize a <strong>Validação Completa CNPJ</strong> para verificar CEIS, CNEP e Lista de Trabalho Escravo.
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Estrutura Societária */}
         <Card>
@@ -364,7 +374,18 @@ export default function AnalysisResults({ result, onNewValidation }: AnalysisRes
             </h3>
             <div className="space-y-3">
               {partners && partners.length > 0 ? (
-                partners.map((partner: any, index: number) => (
+                partners.reduce((acc: any[], current: any) => {
+                  const existing = acc.find(item => item.name === current.name);
+                  if (!existing) {
+                    return [...acc, current];
+                  }
+                  if (current.qualification && existing.qualification) {
+                    if (/\d/.test(current.qualification) && !/\d/.test(existing.qualification)) {
+                      return acc.map(item => item.name === current.name ? current : item);
+                    }
+                  }
+                  return acc;
+                }, []).map((partner: any, index: number) => (
                   <div key={index} className="p-3 bg-muted rounded-lg">
                     <div className="flex justify-between items-start">
                       <div className="flex-1">
@@ -404,12 +425,48 @@ export default function AnalysisResults({ result, onNewValidation }: AnalysisRes
             </div>
           </CardContent>
         </Card>
+
+        {/* Informações de Mercado (B3) */}
+        <Card className="border-primary/20 bg-primary/5">
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold text-foreground mb-4 flex items-center">
+              <TrendingUp className="w-5 h-5 text-primary mr-2" />
+              Informações de Mercado (B3)
+            </h3>
+            <div className="space-y-3">
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Ticker</span>
+                <span className="text-sm font-bold text-primary">{validation.financialMarketData?.ticker || 'N/D'}</span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Preço da Ação</span>
+                <span className="text-sm font-medium text-foreground">
+                  {validation.financialMarketData?.price ? `${validation.financialMarketData.currency || 'BRL'} ${validation.financialMarketData.price.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}` : 'N/D'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center">
+                <span className="text-sm text-muted-foreground">Valuation (Market Cap)</span>
+                <span className="text-sm font-medium text-foreground">
+                  {validation.financialMarketData?.marketCap ? `${validation.financialMarketData.currency || 'BRL'} ${validation.financialMarketData.marketCap.toLocaleString('pt-BR', { notation: 'compact', maximumFractionDigits: 2 })}` : 'N/D'}
+                </span>
+              </div>
+              <div className="flex justify-between items-center pt-2 border-t border-primary/10">
+                <span className="text-[10px] text-muted-foreground">
+                  Fonte: {validation.financialMarketData?.source || 'B3 / HG Brasil / Brapi'}
+                </span>
+                <span className="text-[10px] text-muted-foreground">
+                  {validation.financialMarketData?.updatedAt ? `Atualizado: ${formatDate(validation.financialMarketData.updatedAt)}` : 'Empresa sem capital aberto'}
+                </span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
       </div>
 
       {/* New Validation Button */}
       <div className="text-center">
-        <Button 
-          variant="outline" 
+        <Button
+          variant="outline"
           onClick={onNewValidation}
           data-testid="button-new-validation"
         >

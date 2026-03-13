@@ -139,10 +139,10 @@ class JudicialRecoveryService {
     };
   }
 
-  // Método para detectar padrões no nome da empresa
-  detectFromCompanyName(companyName: string): boolean {
+  // Método para detectar padrões no nome da empresa ou sócios
+  detectFromCompanyName(companyName: string, socios?: Array<any>): boolean {
     const name = companyName.toLowerCase();
-    
+
     const patterns = [
       'em recuperação judicial',
       'em recuperacao judicial',
@@ -155,13 +155,28 @@ class JudicialRecoveryService {
       'recovery'
     ];
 
-    const found = patterns.some(pattern => name.includes(pattern));
-    
-    if (found) {
+    // Verificar no nome da empresa
+    const foundInName = patterns.some(pattern => name.includes(pattern));
+
+    if (foundInName) {
       console.log(`🏷️ Judicial recovery detected in company name: "${companyName}"`);
+      return true;
     }
-    
-    return found;
+
+    // 🆕 Verificar nos sócios
+    if (socios && Array.isArray(socios)) {
+      for (const socio of socios) {
+        const nomeSocio = (socio.nome || socio.nome_socio || '').toLowerCase();
+        const foundInSocio = patterns.some(pattern => nomeSocio.includes(pattern));
+
+        if (foundInSocio) {
+          console.log(`🏷️ Judicial recovery detected in partner: "${socio.nome || socio.nome_socio}"`);
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 }
 

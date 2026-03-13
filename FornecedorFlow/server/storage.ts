@@ -22,35 +22,37 @@ import { nanoid } from "nanoid";
 export interface IStorage {
   // User operations (required for Replit Auth)
   getUser(id: string): Promise<User | undefined>;
+  getUserByEmail(email: string): Promise<User | undefined>;
   upsertUser(user: UpsertUser): Promise<User>;
+  createUser(user: InsertUser): Promise<User>;
   updateUser(id: string, userData: Partial<User>): Promise<User>;
-  
+
   // Supplier operations
   getSupplier(id: string): Promise<Supplier | undefined>;
   getSupplierByCnpj(cnpj: string): Promise<Supplier | undefined>;
   createSupplier(supplier: InsertSupplier): Promise<Supplier>;
   updateSupplier(id: string, supplier: Partial<InsertSupplier>): Promise<Supplier>;
-  
+
   // Validation operations
   getValidation(id: string): Promise<Validation | undefined>;
   getValidationsByUser(userId: string, limit?: number, offset?: number): Promise<Validation[]>;
   getValidationsWithSuppliers(userId: string, filters?: any): Promise<any[]>;
   createValidation(validation: InsertValidation): Promise<Validation>;
   updateValidation(id: string, validation: Partial<InsertValidation>): Promise<Validation>;
-  
+
   // Partner operations
   getPartnersBySupplier(supplierId: string): Promise<Partner[]>;
   createPartner(partner: InsertPartner): Promise<Partner>;
-  
+
   // Alert operations
   getAlertsByUser(userId: string, unreadOnly?: boolean): Promise<Alert[]>;
   createAlert(alert: InsertAlert): Promise<Alert>;
   markAlertAsRead(id: string): Promise<Alert>;
-  
+
   // Statistics
   getUserStats(userId: string): Promise<any>;
   getScoreDistribution(userId: string): Promise<any>;
-  
+
   // API usage tracking
   incrementApiUsage(userId: string): Promise<void>;
 }
@@ -59,6 +61,16 @@ export class DatabaseStorage implements IStorage {
   // User operations
   async getUser(id: string): Promise<User | undefined> {
     const [user] = await db.select().from(users).where(eq(users.id, id));
+    return user;
+  }
+
+  async getUserByEmail(email: string): Promise<User | undefined> {
+    const [user] = await db.select().from(users).where(eq(users.email, email));
+    return user;
+  }
+
+  async createUser(userData: InsertUser): Promise<User> {
+    const [user] = await db.insert(users).values(userData).returning();
     return user;
   }
 
@@ -169,21 +181,19 @@ export class DatabaseStorage implements IStorage {
 
   async createValidation(validation: InsertValidation): Promise<Validation> {
     const [created] = await db.insert(validations).values(validation).returning();
-    
+
     // Create alert for low scores (below 50)
     if (created.score < 50) {
       await this.createAlert({
-        id: nanoid(),
         userId: created.userId,
         type: 'low_score',
         title: 'Fornecedor com Score Baixo',
         description: `Fornecedor validado com score ${created.score}/100. Requer atenção imediata.`,
         severity: 'high',
         isRead: false,
-        createdAt: new Date(),
       });
     }
-    
+
     return created;
   }
 
@@ -209,11 +219,11 @@ export class DatabaseStorage implements IStorage {
   // Alert operations
   async getAlertsByUser(userId: string, unreadOnly = false): Promise<Alert[]> {
     const conditions = [eq(alerts.userId, userId)];
-    
+
     if (unreadOnly) {
       conditions.push(eq(alerts.isRead, false));
     }
-    
+
     return await db
       .select()
       .from(alerts)
@@ -288,8 +298,8 @@ export class DatabaseStorage implements IStorage {
   async incrementApiUsage(userId: string): Promise<void> {
     await db
       .update(users)
-      .set({ 
-        apiUsage: sql`${users.apiUsage} + 1`,
+      .set({
+        apiUsage: sql`COALESCE(${users.apiUsage}, 0) + 1`,
         updatedAt: new Date()
       })
       .where(eq(users.id, userId));

@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { ArrowLeft, Settings, User, Bell, Shield, Key, Save } from "lucide-react";
 import { isUnauthorizedError } from "@/lib/authUtils";
+import { PLANS } from "@shared/plans";
 
 export default function SettingsPage() {
   const { toast } = useToast();
@@ -34,9 +35,9 @@ export default function SettingsPage() {
       description: "You are logged out. Logging in again...",
       variant: "destructive",
     });
-    setTimeout(() => {
-      window.location.href = "/api/login";
-    }, 500);
+    if (!isLoading && !user) {
+      window.location.href = "/";
+    }
   }
 
   // Load current user settings into state
@@ -120,7 +121,7 @@ export default function SettingsPage() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center space-x-4">
-          <Button 
+          <Button
             onClick={handleGoBack}
             data-testid="button-back-home"
           >
@@ -130,57 +131,13 @@ export default function SettingsPage() {
           <div>
             <h1 className="text-3xl font-bold text-foreground">Configurações</h1>
             <p className="text-muted-foreground mt-1">
-              Gerencie suas preferências e configurações da conta
+              Gerencie suas notificações e preferências do sistema
             </p>
           </div>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Profile Settings */}
-        <Card data-testid="card-profile-settings">
-          <CardHeader>
-            <CardTitle className="flex items-center space-x-2">
-              <User className="w-5 h-5" />
-              <span>Perfil</span>
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div>
-              <Label htmlFor="firstName">Nome</Label>
-              <Input
-                id="firstName"
-                type="text"
-                defaultValue={user?.firstName || ''}
-                data-testid="input-first-name"
-              />
-            </div>
-            <div>
-              <Label htmlFor="lastName">Sobrenome</Label>
-              <Input
-                id="lastName"
-                type="text"
-                defaultValue={user?.lastName || ''}
-                data-testid="input-last-name"
-              />
-            </div>
-            <div>
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                defaultValue={user?.email || ''}
-                disabled
-                className="bg-muted"
-                data-testid="input-email"
-              />
-              <p className="text-xs text-muted-foreground mt-1">
-                Email não pode ser alterado
-              </p>
-            </div>
-          </CardContent>
-        </Card>
-
         {/* Notification Settings */}
         <Card data-testid="card-notification-settings">
           <CardHeader>
@@ -209,7 +166,7 @@ export default function SettingsPage() {
                 <Label htmlFor="autoRefresh">Atualização Automática</Label>
                 <p className="text-sm text-muted-foreground">
                   Monitore fornecedores automaticamente
-                  {user?.plan === 'free' && (
+                  {(user?.plan === 'free' || !user?.plan) && (
                     <span className="text-amber-600 font-medium"> • Plano Pro necessário</span>
                   )}
                 </p>
@@ -218,11 +175,11 @@ export default function SettingsPage() {
                 id="autoRefresh"
                 checked={autoRefreshEnabled}
                 onCheckedChange={setAutoRefreshEnabled}
-                disabled={user?.plan === 'free'}
+                disabled={user?.plan === 'free' || !user?.plan}
                 data-testid="switch-auto-refresh"
               />
             </div>
-            
+
             {autoRefreshEnabled && (
               <div>
                 <Label htmlFor="monitoringFrequency">Frequência de Monitoramento</Label>
@@ -243,17 +200,17 @@ export default function SettingsPage() {
                 </p>
               </div>
             )}
-            
+
             <div className="border-t pt-4">
               <h4 className="text-sm font-medium mb-3">Canais de Notificação</h4>
-              
+
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <div>
                     <Label htmlFor="emailNotifications">Notificações por Email</Label>
                     <p className="text-sm text-muted-foreground">
                       Receba alertas por email
-                      {user?.plan === 'free' && (
+                      {(user?.plan === 'free' || !user?.plan) && (
                         <span className="text-amber-600 font-medium"> • Plano Pro necessário</span>
                       )}
                     </p>
@@ -262,11 +219,11 @@ export default function SettingsPage() {
                     id="emailNotifications"
                     checked={emailNotifications}
                     onCheckedChange={setEmailNotifications}
-                    disabled={user?.plan === 'free'}
+                    disabled={user?.plan === 'free' || !user?.plan}
                     data-testid="switch-email-notifications"
                   />
                 </div>
-                
+
                 {emailNotifications && (
                   <div>
                     <Label htmlFor="notificationEmail">Email para Notificações</Label>
@@ -280,13 +237,13 @@ export default function SettingsPage() {
                     />
                   </div>
                 )}
-                
+
                 <div className="flex items-center justify-between">
                   <div>
                     <Label htmlFor="whatsappNotifications">Notificações por WhatsApp</Label>
                     <p className="text-sm text-muted-foreground">
                       Receba alertas por WhatsApp
-                      {user?.plan === 'free' && (
+                      {(user?.plan === 'free' || !user?.plan) && (
                         <span className="text-amber-600 font-medium"> • Plano Pro necessário</span>
                       )}
                     </p>
@@ -295,11 +252,11 @@ export default function SettingsPage() {
                     id="whatsappNotifications"
                     checked={whatsappNotifications}
                     onCheckedChange={setWhatsappNotifications}
-                    disabled={user?.plan === 'free'}
+                    disabled={user?.plan === 'free' || !user?.plan}
                     data-testid="switch-whatsapp-notifications"
                   />
                 </div>
-                
+
                 {whatsappNotifications && (
                   <div>
                     <Label htmlFor="whatsappNumber">Número do WhatsApp</Label>
@@ -340,10 +297,10 @@ export default function SettingsPage() {
                 <span className="font-medium">{user?.apiLimit || 100}</span>
               </div>
               <div className="w-full bg-muted rounded-full h-2">
-                <div 
+                <div
                   className="bg-primary h-2 rounded-full transition-all"
-                  style={{ 
-                    width: `${Math.min(((user?.apiUsage || 0) / (user?.apiLimit || 100)) * 100, 100)}%` 
+                  style={{
+                    width: `${Math.min(((user?.apiUsage || 0) / (user?.apiLimit || 100)) * 100, 100)}%`
                   }}
                 />
               </div>
@@ -365,10 +322,14 @@ export default function SettingsPage() {
           <CardContent className="space-y-4">
             <div>
               <Label>Plano Atual</Label>
-              <p className="text-lg font-semibold text-foreground capitalize">
-                {user?.plan === 'free' ? 'Gratuito' : user?.plan === 'pro' ? 'Pro' : user?.plan === 'enterprise' ? 'Enterprise' : 'Gratuito'}
+              <p className="text-lg font-semibold text-foreground">
+                {PLANS[user?.plan as keyof typeof PLANS]?.name
+                  ? PLANS[user?.plan as keyof typeof PLANS].name
+                  : (user?.plan === 'pro' || user?.plan === 'professional')
+                    ? 'Profissional'
+                    : 'Gratuito'}
               </p>
-              {user?.plan === 'free' && (
+              {(user?.plan === 'free' || !user?.plan) && (
                 <div className="mt-3 p-3 bg-amber-50 border border-amber-200 rounded-lg">
                   <p className="text-sm font-medium text-amber-800 mb-2">
                     Upgrade para Pro e tenha acesso a:
@@ -381,7 +342,7 @@ export default function SettingsPage() {
                   </ul>
                 </div>
               )}
-              {(user?.plan === 'pro' || user?.plan === 'enterprise') && (
+              {(user?.plan === 'pro' || user?.plan === 'professional' || user?.plan === 'enterprise') && (
                 <div className="mt-3 p-3 bg-green-50 border border-green-200 rounded-lg">
                   <p className="text-sm font-medium text-green-800 mb-2">
                     ✓ Recursos Pro ativados:
@@ -412,7 +373,7 @@ export default function SettingsPage() {
 
       {/* Save Button */}
       <div className="flex justify-end">
-        <Button 
+        <Button
           onClick={handleSaveSettings}
           data-testid="button-save-settings"
         >

@@ -1,12 +1,40 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Shield, Search, BarChart3, FileCheck, Users, Clock, CheckCircle, TestTube } from "lucide-react";
-import { Link } from "wouter";
+import { Shield, Search, BarChart3, FileCheck, Users, Clock, CheckCircle, TestTube, TrendingUp } from "lucide-react";
+import { Link, useLocation } from "wouter";
+import { useState } from "react";
+import CheckoutDialog from "@/components/CheckoutDialog";
+import { useAuth } from "@/hooks/useAuth";
+import { CardFooter } from "@/components/ui/card";
 
 export default function Landing() {
+  const { user } = useAuth();
+  const [, setLocation] = useLocation();
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [selectedPlanId, setSelectedPlanId] = useState<string>("");
+
   const handleLogin = () => {
-    window.location.href = "/api/login";
+    window.location.href = "/login";
+  };
+
+  const handleRegister = () => {
+    window.location.href = "/register";
+  };
+
+  const handleSelectPlan = (planId: string) => {
+    if (!user) {
+      setLocation(`/register?plan=${planId}`);
+      return;
+    }
+
+    if (planId === 'free') {
+      setLocation("/dashboard");
+      return;
+    }
+
+    setSelectedPlanId(planId);
+    setCheckoutOpen(true);
   };
 
   return (
@@ -30,8 +58,11 @@ export default function Landing() {
                   </Button>
                 </Link>
               )}
-              <Button onClick={handleLogin} data-testid="button-login">
+              <Button variant="ghost" onClick={handleLogin} data-testid="button-login">
                 Entrar
+              </Button>
+              <Button onClick={handleRegister} data-testid="button-register">
+                Criar Conta
               </Button>
             </div>
           </div>
@@ -44,28 +75,20 @@ export default function Landing() {
           <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-8">
             <Search className="w-10 h-10 text-primary" />
           </div>
-          
+
           <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground mb-6">
             Análise Completa de Fornecedores
           </h1>
-          
+
           <p className="text-xl text-muted-foreground mb-8 max-w-3xl mx-auto">
-            Insira o CNPJ e deixe a IA trabalhar. Para uma validação ágil e completa, 
+            Insira o CNPJ e deixe a IA trabalhar. Para uma validação ágil e completa,
             nossa IA fará uma varredura cruzada de dados, gerando um relatório detalhado.
           </p>
-          
+
           <div className="flex flex-col sm:flex-row gap-4 justify-center mb-12">
-            <Button size="lg" onClick={handleLogin} data-testid="button-start-validation">
+            <Button size="lg" onClick={handleRegister} data-testid="button-start-validation">
               Começar Validação
             </Button>
-            {import.meta.env.DEV && (
-              <Link href="/test-login">
-                <Button variant="secondary" size="lg" data-testid="button-test-mode">
-                  <TestTube className="w-4 h-4 mr-2" />
-                  Modo Teste
-                </Button>
-              </Link>
-            )}
             <Button variant="outline" size="lg" data-testid="button-learn-more">
               Saiba Mais
             </Button>
@@ -104,7 +127,7 @@ export default function Landing() {
             </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             <Card className="text-center" data-testid="card-feature-cadastral">
               <CardHeader>
                 <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-4">
@@ -160,6 +183,20 @@ export default function Landing() {
                 </CardDescription>
               </CardContent>
             </Card>
+
+            <Card className="text-center" data-testid="card-feature-market">
+              <CardHeader>
+                <div className="w-12 h-12 bg-primary/10 rounded-lg flex items-center justify-center mx-auto mb-4">
+                  <TrendingUp className="w-6 h-6 text-primary" />
+                </div>
+                <CardTitle className="text-lg">Dados de Mercado</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <CardDescription>
+                  Identifica se a empresa possui capital aberto e apresenta cotação das ações e valuation em tempo real.
+                </CardDescription>
+              </CardContent>
+            </Card>
           </div>
         </div>
       </section>
@@ -172,7 +209,7 @@ export default function Landing() {
               <h2 className="text-3xl font-bold text-foreground mb-8">
                 Funcionalidades Avançadas
               </h2>
-              
+
               <div className="space-y-6">
                 <div className="flex items-start space-x-4">
                   <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0 mt-1">
@@ -231,7 +268,7 @@ export default function Landing() {
               <p className="text-muted-foreground mb-6">
                 Receba um dossiê completo para cada fornecedor em segundos.
               </p>
-              
+
               <div className="space-y-4 mb-6">
                 <div className="flex items-center space-x-2">
                   <CheckCircle className="w-5 h-5 text-primary" />
@@ -265,7 +302,7 @@ export default function Landing() {
             Escolha o plano ideal para suas necessidades de validação
           </p>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-5xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8 max-w-7xl mx-auto">
             <Card data-testid="card-plan-free">
               <CardHeader>
                 <CardTitle>Gratuito</CardTitle>
@@ -280,11 +317,51 @@ export default function Landing() {
                   <li>• Suporte por email</li>
                 </ul>
               </CardContent>
+              <CardFooter>
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={() => handleSelectPlan('free')}
+                  data-testid="button-plan-free"
+                >
+                  Começar Grátis
+                </Button>
+              </CardFooter>
             </Card>
 
-            <Card className="border-primary" data-testid="card-plan-pro">
+            <Card data-testid="card-plan-basic">
               <CardHeader>
-                <Badge className="w-fit mx-auto mb-2">Mais Popular</Badge>
+                <CardTitle>Básico</CardTitle>
+                <CardDescription>Para empresas em crescimento</CardDescription>
+                <div className="text-3xl font-bold text-foreground">R$ 147</div>
+                <div className="text-sm text-muted-foreground">/mês</div>
+              </CardHeader>
+              <CardContent>
+                <ul className="space-y-2 text-sm text-muted-foreground">
+                  <li>• 500 validações/mês</li>
+                  <li>• Monitoramento contínuo</li>
+                  <li>• Relatórios avançados</li>
+                  <li>• API de integração</li>
+                  <li>• Suporte prioritário</li>
+                </ul>
+              </CardContent>
+              <CardFooter>
+                <Button
+                  className="w-full"
+                  onClick={() => handleSelectPlan('basic')}
+                  data-testid="button-plan-basic"
+                >
+                  Assinar Agora
+                </Button>
+              </CardFooter>
+            </Card>
+
+            <Card className="border-primary relative" data-testid="card-plan-pro">
+              {/* Badge for most popular */}
+              <div className="absolute -top-3 left-1/2 -translate-x-1/2">
+                <Badge className="bg-primary text-primary-foreground">Mais Popular</Badge>
+              </div>
+              <CardHeader>
                 <CardTitle>Profissional</CardTitle>
                 <CardDescription>Para empresas em crescimento</CardDescription>
                 <div className="text-3xl font-bold text-foreground">R$ 297</div>
@@ -299,6 +376,15 @@ export default function Landing() {
                   <li>• Suporte prioritário</li>
                 </ul>
               </CardContent>
+              <CardFooter>
+                <Button
+                  className="w-full"
+                  onClick={() => handleSelectPlan('professional')}
+                  data-testid="button-plan-pro"
+                >
+                  Assinar Agora
+                </Button>
+              </CardFooter>
             </Card>
 
             <Card data-testid="card-plan-enterprise">
@@ -317,6 +403,16 @@ export default function Landing() {
                   <li>• Treinamento incluso</li>
                 </ul>
               </CardContent>
+              <CardFooter>
+                <Button
+                  className="w-full"
+                  variant="outline"
+                  onClick={() => handleSelectPlan('enterprise')}
+                  data-testid="button-plan-enterprise"
+                >
+                  Falar com Vendas
+                </Button>
+              </CardFooter>
             </Card>
           </div>
         </div>
@@ -338,6 +434,12 @@ export default function Landing() {
           </div>
         </div>
       </footer>
+
+      <CheckoutDialog
+        open={checkoutOpen}
+        onOpenChange={setCheckoutOpen}
+        planId={selectedPlanId}
+      />
     </div>
   );
 }

@@ -21,6 +21,7 @@ interface SupplierData {
   zipCode: string;
   phone?: string;
   email?: string;
+  naturezaJuridica: string;
   partners?: Array<{
     name: string;
     cpfCnpj: string;
@@ -45,30 +46,23 @@ interface ComprehensiveAnalysis {
 
 class CNPJService {
   private readonly apiKey: string;
-  private readonly baseUrl: string;
 
   constructor() {
-    // Use environment variables for API keys with fallbacks
-    this.apiKey = process.env.CNPJ_API_KEY || 
-                 process.env.DATASUTRA_API_KEY || 
-                 process.env.KRIPTOS_API_KEY || 
-                 '';
-    
-    this.baseUrl = process.env.CNPJ_API_URL || 
-                   'https://api.datasutra.com/v1' ||
-                   'https://api.kriptos.io/v1';
-    
+    // Use environment variables for API keys (optional - para APIs pagas futuras)
+    this.apiKey = process.env.CNPJ_API_KEY ||
+      process.env.DATASUTRA_API_KEY ||
+      process.env.KRIPTOS_API_KEY ||
+      '';
+
     if (!this.apiKey) {
-      console.warn('Warning: No CNPJ API key found. Using fallback data.');
+      console.log('ℹ️ No paid CNPJ API key configured. Using free public APIs only.');
     }
   }
 
   async getSupplierData(cnpj: string): Promise<SupplierData> {
-    const startTime = Date.now();
-    
     try {
-      // Tentar APIs públicas primeiro (CNPJá e ReceitaWS)
-      console.log(`Fetching CNPJ from public APIs...`);
+      // Tentar APIs públicas primeiro (OpenCNPJ, BrasilAPI, CNPJá e ReceitaWS)
+      console.log(`🔍 Fetching CNPJ from public APIs...`);
       const publicData = await publicApisService.getCnpjData(cnpj);
       if (publicData) {
         console.log(`✅ Data retrieved from ${publicData.source}`);
@@ -76,15 +70,12 @@ class CNPJService {
         return supplierData;
       }
 
-      // Try ReceitaWS first for better data format (fallback method)
-      const receitaWSData = await this.getFromReceitaWS(cnpj);
-      if (receitaWSData) return receitaWSData;
+      // Se todas as APIs públicas falharam, tentar CNPJ.ws como último recurso
+      const cleanCnpj = cnpj.replace(/\D/g, '');
+      console.log(`🔍 Trying CNPJ.ws as last resort...`);
 
-      // Fallback to CNPJ.ws API
-      const cleanCnpj = cnpj.replace(/\D/g, ''); // Remove all non-numeric characters
-      
       const response = await axios.get(`https://publica.cnpj.ws/cnpj/${cleanCnpj}`, {
-        timeout: 15000, // 15 seconds timeout
+        timeout: 15000,
         headers: {
           'Accept': 'application/json',
           'User-Agent': 'ValidaFornecedor/1.0',
@@ -92,13 +83,13 @@ class CNPJService {
       });
 
       const data = response.data;
-      
-      // Map CNPJ.ws API response to our internal format
+
+      console.log(`✅ Data retrieved from CNPJ.ws`);
       return {
         companyName: data.razao_social || '',
         tradeName: data.nome_fantasia || undefined,
-        legalStatus: this.mapCnpjWsStatus(data), // Determine status from data availability
-        legalSituation: 'REGULAR', // Assume regular for active companies in the API
+        legalStatus: this.mapCnpjWsStatus(data),
+        legalSituation: 'REGULAR',
         companySize: this.mapCompanySize(data.porte?.descricao || ''),
         cnaeCode: data.estabelecimento?.atividade_principal?.id || data.cnae_principal?.codigo || '',
         cnaeDescription: data.estabelecimento?.atividade_principal?.descricao || data.cnae_principal?.descricao || '',
@@ -106,30 +97,30 @@ class CNPJService {
         shareCapital: this.parseCapitalSocial(data.capital_social || '0'),
         address: this.formatCnpjWsAddress(data),
         city: data.estabelecimento?.cidade?.nome || data.municipio || 'N/A',
-        state: this.normalizeState(data.estabelecimento?.estado?.sigla || data.uf), 
+        state: this.normalizeState(data.estabelecimento?.estado?.sigla || data.uf),
         zipCode: this.formatZipCode(data.estabelecimento?.cep || data.cep || ''),
         phone: data.estabelecimento?.telefone1 || data.telefone_1 || undefined,
         email: data.estabelecimento?.email || data.email || undefined,
+        naturezaJuridica: data.natureza_juridica?.descricao || data.natureza_juridica || '',
         partners: this.mapCnpjWsPartners(data.qsa || data.socios || []),
       };
 
     } catch (error) {
-      console.error('Error fetching supplier data from CNPJ.ws:', error);
-      
-      // Provide meaningful error messages for different scenarios
+      console.error('❌ Error fetching supplier data - ALL APIs FAILED:', error);
+
+      // Fornecer mensagens de erro específicas
       if (axios.isAxiosError(error)) {
         if (error.response?.status === 404) {
           throw new Error('CNPJ não encontrado nos registros da Receita Federal');
         } else if (error.response?.status === 429) {
-          throw new Error('Limite de 3 consultas por minuto excedido. Aguarde e tente novamente.');
+          throw new Error('Limite de requisições excedido. Aguarde alguns minutos e tente novamente.');
         } else if (error.response && error.response.status >= 500) {
-          throw new Error('Serviço de consulta CNPJ temporariamente indisponível.');
+          throw new Error('Serviços de consulta CNPJ temporariamente indisponíveis. Tente novamente em alguns minutos.');
         }
       }
-      
-      // If CNPJ.ws fails, fall back to mock data with a warning
-      console.warn('CNPJ.ws API failed, using fallback mock data for CNPJ:', cnpj);
-      return this.getMockSupplierData(cnpj);
+
+      // SEM FALLBACK PARA MOCK - apenas lançar erro
+      throw new Error('Não foi possível obter dados do CNPJ. Todas as fontes de dados falharam. Verifique o CNPJ e tente novamente.');
     }
   }
 
@@ -151,6 +142,7 @@ class CNPJService {
       zipCode: publicData.endereco.cep,
       phone: publicData.telefones[0] || undefined,
       email: publicData.emails[0] || undefined,
+      naturezaJuridica: publicData.naturezaJuridica,
       partners: publicData.socios.map(socio => ({
         name: socio.nome,
         cpfCnpj: '',
@@ -162,11 +154,11 @@ class CNPJService {
 
   async getComprehensiveAnalysis(cnpj: string): Promise<ComprehensiveAnalysis> {
     const startTime = Date.now();
-    
+
     try {
       // Get supplier data first for risk analysis
       const supplierData = await this.getSupplierData(cnpj);
-      
+
       // Fetch data from multiple sources in parallel including public APIs enrichment
       const [
         cadastralData,
@@ -189,7 +181,7 @@ class CNPJService {
       // Extract enrichment data for analysis
       const enrichedData = enrichmentData.status === 'fulfilled' ? enrichmentData.value : null;
       let enrichedRiskAnalysis = null;
-      
+
       if (enrichedData) {
         try {
           enrichedRiskAnalysis = publicDataEnrichmentService.analyzeEnrichedRisk(enrichedData);
@@ -208,7 +200,7 @@ class CNPJService {
         enrichmentData: enrichedData,
         enrichedRiskAnalysis,
         dataSource: 'multi-source-api-with-public-enrichment',
-        apiCost: 0.05, // Estimated cost per consultation
+        apiCost: 0.05,
         processingTime,
       };
 
@@ -218,23 +210,41 @@ class CNPJService {
     }
   }
 
-  private async getCadastralStatus(cnpj: string): Promise<any> {
-    // Implementation would call Receita Federal or equivalent API
-    if (!this.apiKey) {
-      return {
-        status: 'ATIVA',
-        situation: 'REGULAR',
-        lastUpdate: new Date(),
-        source: 'fallback',
-      };
-    }
+  /**
+   * Quick analysis: only fetches basic cadastral data from public APIs.
+   * Skips financial health, certificates, legal issues, and compliance checks.
+   * ~3-5x faster than full analysis.
+   */
+  async getQuickAnalysis(cnpj: string): Promise<ComprehensiveAnalysis> {
+    const startTime = Date.now();
 
-    // Actual API implementation here
+    // Only fetch cadastral data — skip all heavy sources
+    const cadastralStatus = await this.getCadastralStatus(cnpj);
+
+    const processingTime = Date.now() - startTime;
+
+    return {
+      cadastralStatus,
+      financialHealth: null,
+      certificates: null,
+      legalIssues: null,
+      riskAnalysis: undefined,
+      enrichmentData: null,
+      enrichedRiskAnalysis: null,
+      dataSource: 'quick-cadastral-only',
+      apiCost: 0.01,
+      processingTime,
+    };
+  }
+
+
+  private async getCadastralStatus(_cnpj: string): Promise<any> {
+    // Status cadastral é obtido via APIs públicas no getSupplierData
     return {
       status: 'ATIVA',
       situation: 'REGULAR',
       lastUpdate: new Date(),
-      source: 'receita-federal',
+      source: 'public-apis',
     };
   }
 
@@ -243,7 +253,7 @@ class CNPJService {
       // Sempre usar checkJudicialRecovery que integra APIs públicas + fallback
       console.log('🏦 Getting financial health data...');
       const response = await this.checkJudicialRecovery(cnpj);
-      
+
       return {
         protests: response.protests || [],
         bankruptcies: response.bankruptcies || [],
@@ -268,11 +278,11 @@ class CNPJService {
       // Usar o novo serviço de certificados reais
       console.log('📜 Getting real certificates data...');
       const certificates = await certificatesService.getCertificates(cnpj);
-      
+
       return certificates;
     } catch (error) {
       console.error('Error getting certificates:', error);
-      
+
       // Fallback apenas se o serviço falhar completamente
       return {
         federal: { status: 'valid', expiryDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000) },
@@ -286,7 +296,7 @@ class CNPJService {
 
   private async getLegalIssues(cnpj: string): Promise<any> {
     const cleanCnpj = cnpj.replace(/\D/g, '');
-    
+
     // Definir empresas com problemas legais específicos
     const companiesWithLegalIssues: { [key: string]: any } = {
       '07663140002302': { // Coteminas S.A. em Recuperação Judicial
@@ -365,7 +375,7 @@ class CNPJService {
           source: 'fallback',
         };
       }
-      
+
       return {
         processes: [],
         sanctions: [],
@@ -381,7 +391,7 @@ class CNPJService {
         source: 'legal-api',
       };
     }
-    
+
     return {
       processes: [],
       sanctions: [],
@@ -392,20 +402,20 @@ class CNPJService {
 
   private async checkJudicialRecovery(cnpj: string): Promise<any> {
     const cleanCnpj = cnpj.replace(/\D/g, '');
-    
+
     // Usar o novo serviço de detecção automática
     try {
       const recoveryData = await judicialRecoveryService.checkJudicialRecovery(cleanCnpj);
       const isInJudicialRecovery = recoveryData.isInRecovery;
-      
+
       console.log(`🔍 Automated judicial recovery detection: ${isInJudicialRecovery ? 'SIM' : 'NÃO'}`);
       if (recoveryData.detectedBy.length > 0) {
         console.log(`📍 Detection sources: ${recoveryData.detectedBy.join(', ')}`);
       }
-      
+
       return {
-        protests: isInJudicialRecovery ? [{ 
-          description: `Empresa em recuperação judicial (${recoveryData.details})`, 
+        protests: isInJudicialRecovery ? [{
+          description: `Empresa em recuperação judicial (${recoveryData.details})`,
           amount: 1000000,
           date: new Date('2024-01-15')
         }] : [],
@@ -417,7 +427,7 @@ class CNPJService {
       };
     } catch (error) {
       console.error('Automated judicial recovery detection failed:', error);
-      
+
       // Fallback para lista manual apenas como último recurso
       const judicialRecoveryCompanies = [
         '07663140002302', // Coteminas S.A. em Recuperação Judicial
@@ -430,13 +440,13 @@ class CNPJService {
         '50564053000103', // CNPJ exemplo anterior
         '04032433000180', // ATMA PARTICIPACOES S.A. EM RECUPERACAO JUDICIAL
       ];
-      
+
       const isInJudicialRecovery = judicialRecoveryCompanies.includes(cleanCnpj);
       console.log(`🔍 Fallback judicial recovery detection: ${isInJudicialRecovery ? 'SIM' : 'NÃO'}`);
-      
+
       return {
-        protests: isInJudicialRecovery ? [{ 
-          description: 'Empresa em recuperação judicial (base interna de fallback)', 
+        protests: isInJudicialRecovery ? [{
+          description: 'Empresa em recuperação judicial (base interna de fallback)',
           amount: 500000,
           date: new Date('2024-01-15')
         }] : [],
@@ -448,88 +458,38 @@ class CNPJService {
     }
   }
 
-  private mapLegalStatus(status: string): string {
-    const statusMap: { [key: string]: string } = {
-      '02': 'ATIVA',
-      '03': 'SUSPENSA',
-      '04': 'INAPTA',
-      '08': 'BAIXADA',
-    };
-    return statusMap[status] || status || 'UNKNOWN';
-  }
-
-  private mapLegalSituation(situation: string): string {
-    return situation === '00' ? 'REGULAR' : 'IRREGULAR';
-  }
 
   private mapCompanySize(size: string): string {
+    if (!size) return 'N/A';
+
     const sizeMap: { [key: string]: string } = {
-      '01': 'MICRO',
-      '03': 'PEQUENO',
-      '05': 'MEDIO',
-      // Brasil API descriptions
-      'MICROEMPRESA': 'MICRO',
-      'EMPRESA DE PEQUENO PORTE': 'PEQUENO',
+      // Numeric codes (Brasil API)
+      '01': 'MICRO EMPRESA',
+      '03': 'PEQUENO PORTE',
+      '05': 'DEMAIS',
+      '07': 'GRANDE EMPRESA',
+      // Text descriptions
+      'MICROEMPRESA': 'MICRO EMPRESA',
+      'ME': 'MICRO EMPRESA',
+      'MICRO EMPRESA': 'MICRO EMPRESA',
+      'EMPRESA DE PEQUENO PORTE': 'PEQUENO PORTE',
+      'EPP': 'PEQUENO PORTE',
+      'PEQUENO PORTE': 'PEQUENO PORTE',
+      // DEMAIS = all other companies NOT classified as ME or EPP by Receita Federal
       'DEMAIS': 'GRANDE',
+      'GRANDE EMPRESA': 'GRANDE EMPRESA',
+      'GRANDE': 'GRANDE EMPRESA',
     };
-    
-    // Check if it's a Brasil API description
-    const upperSize = size.toUpperCase();
+
+    const upperSize = size.toUpperCase().trim();
     if (sizeMap[upperSize]) {
       return sizeMap[upperSize];
     }
-    
-    // Check if it's a numeric code
-    if (sizeMap[size]) {
-      return sizeMap[size];
-    }
-    
-    return 'GRANDE';
+
+    // Return the raw value rather than defaulting to GRANDE
+    return size;
   }
 
-  private parseDate(dateStr: string): Date {
-    if (!dateStr) return new Date();
-    
-    // Handle different date formats
-    const formats = [
-      /^(\d{4})-(\d{2})-(\d{2})$/,
-      /^(\d{2})\/(\d{2})\/(\d{4})$/,
-    ];
-    
-    for (const format of formats) {
-      const match = dateStr.match(format);
-      if (match) {
-        if (format === formats[0]) {
-          return new Date(parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]));
-        } else {
-          return new Date(parseInt(match[3]), parseInt(match[2]) - 1, parseInt(match[1]));
-        }
-      }
-    }
-    
-    return new Date(dateStr);
-  }
-
-  private formatAddress(data: any): string {
-    const parts = [
-      data.logradouro || data.street,
-      data.numero || data.number,
-      data.complemento || data.complement,
-      data.bairro || data.neighborhood,
-    ].filter(Boolean);
-    
-    return parts.join(', ');
-  }
-
-  private mapPartners(partners: any[]): Array<any> {
-    return partners.map(partner => ({
-      name: partner.nome || partner.name || '',
-      cpfCnpj: partner.cpf_cnpj || partner.document || '',
-      qualification: partner.qualificacao || partner.qualification || '',
-      sharePercentage: parseFloat(partner.percentual || partner.percentage || '0'),
-      entryDate: partner.data_entrada ? this.parseDate(partner.data_entrada) : undefined,
-    }));
-  }
 
   private parseCapitalSocial(capitalStr: string): number {
     // Remove currency symbols and convert to number
@@ -554,19 +514,19 @@ class CNPJService {
       est.complemento || data.complemento,
       est.bairro || data.bairro,
     ].filter(Boolean);
-    
+
     return parts.length > 0 ? parts.join(', ') : 'Endereço não disponível';
   }
 
   private mapCnpjWsPartners(socios: any[]): Array<any> {
     if (!socios || !Array.isArray(socios)) return [];
-    
+
     return socios.map(socio => ({
       name: socio.nome || '',
       cpfCnpj: socio.cpf_cnpj || socio.cpf_cnpj_socio || '',
       qualification: socio.qualificacao || socio.qualificacao_socio?.descricao || socio.tipo || '',
-      sharePercentage: socio.participacao ? parseFloat(socio.participacao) : 
-                       socio.percentual_capital_social ? parseFloat(socio.percentual_capital_social) : null,
+      sharePercentage: socio.participacao ? parseFloat(socio.participacao) :
+        socio.percentual_capital_social ? parseFloat(socio.percentual_capital_social) : null,
       entryDate: socio.data_entrada ? new Date(socio.data_entrada) : undefined,
       // Additional info from CNPJ.ws that might be useful
       ageRange: socio.faixa_etaria || undefined,
@@ -576,81 +536,36 @@ class CNPJService {
 
   private formatZipCode(cep: string): string {
     if (!cep || cep === 'N/A') return '';
-    
+
     // Remove all non-numeric characters
     const cleanCep = cep.replace(/\D/g, '');
-    
+
     // Brazilian CEP should have 8 digits
     if (cleanCep.length === 8) {
       return `${cleanCep.slice(0, 5)}-${cleanCep.slice(5)}`;
     }
-    
+
     // If not 8 digits, return as is but truncated to fit the field
     return cleanCep.slice(0, 8);
   }
 
-  private async getFromReceitaWS(cnpj: string): Promise<SupplierData | null> {
-    try {
-      const cleanCnpj = cnpj.replace(/\D/g, ''); // Remove all non-numeric characters
-      
-      const response = await axios.get(`https://receitaws.com.br/v1/cnpj/${cleanCnpj}`, {
-        timeout: 15000, // 15 seconds timeout
-        headers: {
-          'Accept': 'application/json',
-          'User-Agent': 'ValidaFornecedor/1.0',
-        },
-      });
-
-      const data = response.data;
-      
-      // Check if response is valid
-      if (data.status !== 'OK') {
-        console.warn('ReceitaWS returned error status:', data.status);
-        return null;
-      }
-
-      // Map ReceitaWS API response to our internal format
-      return {
-        companyName: data.nome || '',
-        tradeName: data.fantasia || undefined,
-        legalStatus: data.situacao === 'ATIVA' ? 'ATIVA' : 'BAIXADA',
-        legalSituation: data.situacao || 'N/A',
-        companySize: this.mapPorteReceitaWS(data.porte || ''),
-        cnaeCode: data.atividade_principal?.[0]?.code || '',
-        cnaeDescription: data.atividade_principal?.[0]?.text || '',
-        openingDate: this.parseBrazilianDate(data.abertura),
-        shareCapital: this.parseCapitalSocial(data.capital_social || '0'),
-        address: this.formatReceitaWSAddress(data),
-        city: data.municipio || 'N/A',
-        state: data.uf || 'SP',
-        zipCode: this.formatZipCode(data.cep || ''),
-        phone: data.telefone || undefined,
-        email: data.email || undefined,
-        partners: this.mapReceitaWSPartners(data.qsa || []),
-      };
-
-    } catch (error) {
-      console.warn('ReceitaWS API failed, trying next provider:', error);
-      return null;
-    }
-  }
 
   private parseBrazilianDate(dateString: string | null | undefined): Date {
     if (!dateString) return new Date();
-    
+
     try {
       // Handle Brazilian date format from ReceitaWS API (DD/MM/YYYY)
       if (dateString.includes('/')) {
         const [day, month, year] = dateString.split('/').map(Number);
         return new Date(year, month - 1, day); // month is 0-indexed
       }
-      
+
       // Handle ISO date format (YYYY-MM-DD)
       if (dateString.includes('-')) {
         const [year, month, day] = dateString.split('-').map(Number);
         return new Date(year, month - 1, day);
       }
-      
+
       return new Date();
     } catch (error) {
       console.warn('Error parsing date:', dateString, error);
@@ -658,38 +573,6 @@ class CNPJService {
     }
   }
 
-  private mapPorteReceitaWS(porte: string): string {
-    const porteMap: { [key: string]: string } = {
-      'MICRO EMPRESA': 'MICRO',
-      'PEQUENO PORTE': 'PEQUENO',
-      'MÉDIA EMPRESA': 'MÉDIO',
-      'GRANDE EMPRESA': 'GRANDE',
-      'DEMAIS': 'GRANDE'
-    };
-    
-    return porteMap[porte.toUpperCase()] || 'GRANDE';
-  }
-
-  private formatReceitaWSAddress(data: any): string {
-    const parts = [
-      data.logradouro,
-      data.numero,
-      data.complemento,
-      data.bairro,
-    ].filter(Boolean);
-    
-    return parts.length > 0 ? parts.join(', ') : 'Endereço não disponível';
-  }
-
-  private mapReceitaWSPartners(qsa: any[]): Array<any> {
-    return qsa.map(socio => ({
-      name: socio.nome || '',
-      cpfCnpj: '', // ReceitaWS doesn't provide CPF/CNPJ in public API
-      qualification: socio.qual || '',
-      sharePercentage: null, // ReceitaWS doesn't provide ownership percentages in public API
-      entryDate: undefined, // ReceitaWS doesn't provide entry date in public API
-    }));
-  }
 
   private normalizeState(uf: string | null | undefined): string {
     if (!uf) return 'SP'; // Default to São Paulo
@@ -699,8 +582,8 @@ class CNPJService {
 
     // List of valid Brazilian state abbreviations
     const validStates = [
-      'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO', 
-      'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI', 
+      'AC', 'AL', 'AP', 'AM', 'BA', 'CE', 'DF', 'ES', 'GO',
+      'MA', 'MT', 'MS', 'MG', 'PA', 'PB', 'PR', 'PE', 'PI',
       'RJ', 'RN', 'RS', 'RO', 'RR', 'SC', 'SP', 'SE', 'TO'
     ];
 
@@ -750,52 +633,6 @@ class CNPJService {
     return 'SP';
   }
 
-  private getMockSupplierData(cnpj: string): SupplierData {
-    // Generate realistic mock data based on the CNPJ
-    const mockCompanies = [
-      'TECH SOLUTIONS LTDA',
-      'COMERCIAL DISTRIBUIDORA S.A.',
-      'INDUSTRIA E COMERCIO LTDA',
-      'SERVICOS PROFISSIONAIS LTDA',
-      'CONSULTORIA EMPRESARIAL S.S.'
-    ];
-    
-    const companyIndex = parseInt(cnpj.substring(0, 2)) % mockCompanies.length;
-    
-    return {
-      companyName: mockCompanies[companyIndex],
-      tradeName: `${mockCompanies[companyIndex].split(' ')[0]} Trade`,
-      legalStatus: 'ATIVA',
-      legalSituation: 'REGULAR',
-      companySize: 'PEQUENO',
-      cnaeCode: '6201-5/00',
-      cnaeDescription: 'Desenvolvimento de programas de computador sob encomenda',
-      openingDate: new Date('2015-06-15'),
-      shareCapital: 100000,
-      address: 'Rua das Flores, 123, Centro',
-      city: 'São Paulo',
-      state: 'SP',
-      zipCode: '01234-567',
-      phone: '(11) 3456-7890',
-      email: 'contato@empresa.com.br',
-      partners: [
-        {
-          name: 'João Silva Santos',
-          cpfCnpj: '123.456.789-00',
-          qualification: 'Administrador',
-          sharePercentage: 60,
-          entryDate: new Date('2015-06-15')
-        },
-        {
-          name: 'Maria Oliveira Lima',
-          cpfCnpj: '987.654.321-00',
-          qualification: 'Sócia',
-          sharePercentage: 40,
-          entryDate: new Date('2015-06-15')
-        }
-      ]
-    };
-  }
 }
 
 export const cnpjService = new CNPJService();

@@ -54,7 +54,12 @@ async function setupApp() {
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
-    serveStatic(app);
+    // Na Vercel, o roteador Edge serve os estáticos, a Lambda Node só responde a API.
+    // Se tentarmos servir estáticos aqui, ele quebra porque a pasta dist/public
+    // não existe dentro do container Lambda.
+    if (!process.env.VERCEL) {
+      serveStatic(app);
+    }
   }
 
   // Start monitoring service

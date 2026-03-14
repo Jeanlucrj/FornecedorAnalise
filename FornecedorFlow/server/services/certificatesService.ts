@@ -22,21 +22,21 @@ class CertificatesService {
 
   async getCertificates(cnpj: string): Promise<CertificatesResponse> {
     const cleanCnpj = cnpj.replace(/\D/g, '');
-    
+
     console.log(`🏛️ Fetching real certificates data for CNPJ: ${cleanCnpj}`);
 
     try {
       // 🚨 PRIMEIRA VERIFICAÇÃO: Empresa em recuperação judicial
       console.log('🔍 Checking if company is in judicial recovery...');
       const recoveryData = await judicialRecoveryService.checkJudicialRecovery(cleanCnpj);
-      
+
       console.log(`🔍 Recovery check result:`, {
         isInRecovery: recoveryData.isInRecovery,
         source: recoveryData.source,
         detectedBy: recoveryData.detectedBy,
         details: recoveryData.details
       });
-      
+
       if (recoveryData.isInRecovery) {
         console.log('❌ Company in judicial recovery - ALL certificates INVALID');
         return {
@@ -47,14 +47,14 @@ class CertificatesService {
             source: recoveryData.source,
           },
           labor: {
-            status: 'invalid', 
+            status: 'invalid',
             expiryDate: new Date('2024-01-15'),
             issue: 'Empresa em recuperação judicial - passivos trabalhistas',
             source: recoveryData.source,
           },
           state: {
             status: 'invalid',
-            expiryDate: new Date('2024-01-15'), 
+            expiryDate: new Date('2024-01-15'),
             issue: 'Empresa em recuperação judicial - débitos estaduais suspensos',
             source: recoveryData.source,
           },
@@ -76,7 +76,7 @@ class CertificatesService {
         municipalData
       ] = await Promise.allSettled([
         this.getFederalCertificate(cleanCnpj),
-        this.getLaborCertificate(cleanCnpj), 
+        this.getLaborCertificate(cleanCnpj),
         this.getStateCertificate(cleanCnpj),
         this.getMunicipalCertificate(cleanCnpj)
       ]);
@@ -107,7 +107,7 @@ class CertificatesService {
       // Tentar usar a API oficial do gov.br
       const federalData = await this.queryOfficialCNDAPI(cnpj);
       if (federalData) {
-        console.log(`📋 Federal API response: ${federalData.status} - ${federalData.message}`);
+        console.log(`📋 Federal API response: ${federalData.status} - ${(federalData as any).message || 'OK'}`);
         return federalData;
       }
 
@@ -116,7 +116,7 @@ class CertificatesService {
       if (publicData) {
         // Detectar problemas fiscais pela situação especial ou outros indicadores
         const hasFiscalIssues = this.detectFiscalIssues(publicData.situacao, publicData.razaoSocial);
-        
+
         if (hasFiscalIssues) {
           return {
             status: 'invalid',
@@ -126,7 +126,7 @@ class CertificatesService {
           };
         }
       }
-      
+
       return {
         status: 'valid',
         expiryDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000), // 180 dias
@@ -153,13 +153,13 @@ class CertificatesService {
       // Tentar consultar via portal oficial do TST
       const laborData = await this.queryTSTPortal(cnpj);
       if (laborData) {
-        console.log(`📋 TST response: ${laborData.status} - ${laborData.message || 'OK'}`);
+        console.log(`📋 TST response: ${laborData.status} - ${(laborData as any).message || 'OK'}`);
         return laborData;
       }
 
       // Verificar via Banco Nacional de Devedores Trabalhistas (análise heurística)
       const hasLaborIssues = await this.checkLaborIssuesByAnalysis(cnpj);
-      
+
       if (hasLaborIssues) {
         return {
           status: 'invalid',
@@ -168,7 +168,7 @@ class CertificatesService {
           source: 'tst-analysis',
         };
       }
-      
+
       return {
         status: 'valid',
         expiryDate: new Date(Date.now() + 180 * 24 * 60 * 60 * 1000), // 180 dias
@@ -201,7 +201,7 @@ class CertificatesService {
       // Consultar sistema estadual específico
       const stateData = await this.queryStateCertificateSystem(cnpj, uf);
       if (stateData) {
-        console.log(`📋 State ${uf} response: ${stateData.status} - ${stateData.message || 'OK'}`);
+        console.log(`📋 State ${uf} response: ${stateData.status} - ${(stateData as any).message || 'OK'}`);
         return stateData;
       }
 
@@ -248,7 +248,7 @@ class CertificatesService {
       // Consultar sistema municipal específico
       const municipalData = await this.queryMunicipalCertificateSystem(cnpj, municipio, uf);
       if (municipalData) {
-        console.log(`📋 Municipal ${municipio} response: ${municipalData.status} - ${municipalData.message || 'OK'}`);
+        console.log(`📋 Municipal ${municipio} response: ${municipalData.status} - ${(municipalData as any).message || 'OK'}`);
         return municipalData;
       }
 
@@ -297,7 +297,7 @@ class CertificatesService {
     const situacaoLower = situacao.toLowerCase();
     const razaoLower = razaoSocial.toLowerCase();
 
-    return problematicKeywords.some(keyword => 
+    return problematicKeywords.some(keyword =>
       situacaoLower.includes(keyword) || razaoLower.includes(keyword)
     );
   }
@@ -310,7 +310,7 @@ class CertificatesService {
       // Esta seria a implementação real da API oficial do gov.br
       // Requer autenticação OAuth2 e certificado digital tipo A
       // URL: https://apigateway.conectagov.estaleiro.serpro.gov.br
-      
+
       console.log('🔐 Official CND API requires OAuth2 + digital certificate - using analysis');
       return null; // Por enquanto, usar análise heurística
     } catch (error) {
@@ -324,7 +324,7 @@ class CertificatesService {
     try {
       // Portal oficial: https://cndt-certidao.tst.jus.br/
       // Por limitações de CORS e CAPTCHA, implementar análise heurística
-      
+
       console.log('🔐 TST Portal requires human interaction - using analysis');
       return null; // Por enquanto, usar análise heurística
     } catch (error) {
@@ -340,7 +340,7 @@ class CertificatesService {
       // SP: https://www.dividaativa.pge.sp.gov.br/sc/pages/crda/emitirCrda.jsf
       // PR: https://www.fazenda.pr.gov.br/servicos/
       // Cada estado tem seu sistema próprio
-      
+
       console.log(`🔐 State ${uf} system requires specific integration - using analysis`);
       return null; // Por enquanto, usar análise heurística
     } catch (error) {
@@ -355,7 +355,7 @@ class CertificatesService {
       // Implementar por município:
       // São Paulo/SP: https://duc.prefeitura.sp.gov.br/certidoes/
       // Cada município tem seu sistema próprio
-      
+
       console.log(`🔐 Municipal ${municipio}/${uf} system requires specific integration - using analysis`);
       return null; // Por enquanto, usar análise heurística
     } catch (error) {
@@ -378,12 +378,12 @@ class CertificatesService {
           'fgts',
           'inss'
         ];
-        
+
         const situacao = publicData.situacao.toLowerCase();
         const razaoSocial = publicData.razaoSocial.toLowerCase();
-        
+
         // Se empresa tem situação irregular ou nome suspeito
-        return laborKeywords.some(keyword => 
+        return laborKeywords.some(keyword =>
           situacao.includes(keyword) || razaoSocial.includes('trabalh')
         );
       }
@@ -396,14 +396,14 @@ class CertificatesService {
   // Detectar problemas estaduais específicos
   private detectStateIssues(publicData: any, uf: string): boolean {
     if (!publicData) return false;
-    
+
     const stateKeywords = [
       'icms',
       'estadual',
       'state',
       'pendenc'
     ];
-    
+
     const situacao = publicData.situacao.toLowerCase();
     return stateKeywords.some(keyword => situacao.includes(keyword));
   }
@@ -411,14 +411,14 @@ class CertificatesService {
   // Detectar problemas municipais específicos
   private detectMunicipalIssues(publicData: any, municipio: string): boolean {
     if (!publicData) return false;
-    
+
     const municipalKeywords = [
       'iss',
       'municipal',
       'prefeit',
       'city'
     ];
-    
+
     const situacao = publicData.situacao.toLowerCase();
     return municipalKeywords.some(keyword => situacao.includes(keyword));
   }

@@ -8,7 +8,7 @@ import { useLocation } from "wouter";
 
 export default function RecentValidations() {
   const [, setLocation] = useLocation();
-  
+
   const { data: validations, isLoading } = useQuery({
     queryKey: ["/api/dashboard/recent"],
   });
@@ -52,9 +52,9 @@ export default function RecentValidations() {
           <CardTitle className="text-lg font-semibold text-foreground">
             Validações Recentes
           </CardTitle>
-          <Button 
-            variant="link" 
-            size="sm" 
+          <Button
+            variant="link"
+            size="sm"
             onClick={() => setLocation("/history")}
             data-testid="link-view-all-validations"
           >
@@ -62,23 +62,22 @@ export default function RecentValidations() {
           </Button>
         </div>
       </CardHeader>
-      
+
       <CardContent>
         <div className="space-y-4">
-          {validations && validations.length > 0 ? (
-            validations.map((item: any, index: number) => (
-              <div 
-                key={item.validation.id} 
+          {validations && (validations as any[]).length > 0 ? (
+            (validations as any[]).map((item: any, index: number) => (
+              <div
+                key={item.validation.id}
                 className="flex items-center justify-between p-3 bg-muted rounded-lg hover:bg-muted/80 transition-colors"
                 data-testid={`validation-item-${index}`}
               >
                 <div className="flex items-center space-x-3">
                   <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                    <Building className={`w-5 h-5 ${
-                      item.validation.status === 'approved' ? 'text-primary' :
-                      item.validation.status === 'attention' ? 'text-warning' :
-                      'text-destructive'
-                    }`} />
+                    <Building className={`w-5 h-5 ${item.validation.status === 'approved' ? 'text-primary' :
+                        item.validation.status === 'attention' ? 'text-warning' :
+                          'text-destructive'
+                      }`} />
                   </div>
                   <div>
                     <p className="font-medium text-foreground" data-testid={`company-name-${index}`}>
@@ -101,9 +100,9 @@ export default function RecentValidations() {
             <div className="text-center py-8">
               <Building className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
               <p className="text-muted-foreground">Nenhuma validação realizada ainda</p>
-              <Button 
-                variant="outline" 
-                size="sm" 
+              <Button
+                variant="outline"
+                size="sm"
                 className="mt-2"
                 onClick={() => setLocation("/validate")}
                 data-testid="button-first-validation"

@@ -38,19 +38,19 @@ export default function ScoreDistribution() {
   const distributionData = [
     {
       label: "Alto (80-100)",
-      value: distribution?.high || 0,
+      value: (distribution as any)?.high || 0,
       color: "bg-success",
       dotColor: "bg-success",
     },
     {
       label: "Médio (50-79)",
-      value: distribution?.medium || 0,
+      value: (distribution as any)?.medium || 0,
       color: "bg-warning",
       dotColor: "bg-warning",
     },
     {
       label: "Baixo (0-49)",
-      value: distribution?.low || 0,
+      value: (distribution as any)?.low || 0,
       color: "bg-destructive",
       dotColor: "bg-destructive",
     },
@@ -63,7 +63,7 @@ export default function ScoreDistribution() {
           Distribuição de Scores
         </CardTitle>
       </CardHeader>
-      
+
       <CardContent>
         <div className="space-y-4">
           {distributionData.map((item, index) => (
@@ -77,8 +77,8 @@ export default function ScoreDistribution() {
                   {item.value}%
                 </span>
               </div>
-              <Progress 
-                value={item.value} 
+              <Progress
+                value={item.value}
                 className={`h-2 ${item.color}`}
                 data-testid={`progress-${index}`}
               />
@@ -92,9 +92,9 @@ export default function ScoreDistribution() {
             <span className="text-sm font-medium text-foreground">Insight</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            {distribution?.high >= 60 
+            {(distribution as any)?.high >= 60
               ? "A maioria dos seus fornecedores possui alta confiabilidade. Continue monitorando aqueles com scores mais baixos."
-              : distribution?.medium >= 50
+              : (distribution as any)?.medium >= 50
                 ? "Seus fornecedores apresentam scores medianos. Considere revisar os critérios de seleção."
                 : "Atenção: muitos fornecedores com scores baixos. Recomendamos uma análise mais rigorosa."
             }

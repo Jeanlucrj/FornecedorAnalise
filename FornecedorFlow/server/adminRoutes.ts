@@ -17,7 +17,7 @@ router.get('/api/admin/stats', isAdminAuthenticated, async (req, res) => {
     const stats = await adminService.getPlatformStats(dateRange);
 
     await logAdminActivity(
-      req.session.adminId,
+      (req.session as any).adminId,
       'view_stats',
       'stats',
       undefined,
@@ -41,7 +41,7 @@ router.get('/api/admin/users', isAdminAuthenticated, async (req, res) => {
     const result = await adminService.getAllUsers(limit, offset);
 
     await logAdminActivity(
-      req.session.adminId,
+      (req.session as any).adminId,
       'view_users',
       'users',
       undefined,
@@ -63,7 +63,7 @@ router.get('/api/admin/users/:userId', isAdminAuthenticated, async (req, res) =>
     const userDetails = await adminService.getUserDetails(userId);
 
     await logAdminActivity(
-      req.session.adminId,
+      (req.session as any).adminId,
       'view_user_details',
       'user',
       userId,
@@ -91,7 +91,7 @@ router.patch('/api/admin/users/:userId/plan', isAdminAuthenticated, async (req, 
     const updatedUser = await adminService.updateUserPlan(userId, plan, apiLimit);
 
     await logAdminActivity(
-      req.session.adminId,
+      (req.session as any).adminId,
       'update_user_plan',
       'user',
       userId,
@@ -113,7 +113,7 @@ router.post('/api/admin/users/:userId/reset-usage', isAdminAuthenticated, async 
     const updatedUser = await adminService.resetUserApiUsage(userId);
 
     await logAdminActivity(
-      req.session.adminId,
+      (req.session as any).adminId,
       'reset_user_api_usage',
       'user',
       userId,
@@ -156,7 +156,7 @@ router.get('/api/admin/analytics/services', isAdminAuthenticated, async (req, re
     const services = await adminService.getMostUsedServices();
 
     await logAdminActivity(
-      req.session.adminId,
+      (req.session as any).adminId,
       'view_services_analytics',
       'analytics',
       undefined,
@@ -178,7 +178,7 @@ router.get('/api/admin/analytics/usage', isAdminAuthenticated, async (req, res) 
     const analytics = await adminService.getUsageAnalytics(days);
 
     await logAdminActivity(
-      req.session.adminId,
+      (req.session as any).adminId,
       'view_usage_analytics',
       'analytics',
       undefined,
@@ -199,7 +199,7 @@ router.get('/api/admin/analytics/revenue', isAdminAuthenticated, async (req, res
     const revenue = await adminService.getRevenueMetrics();
 
     await logAdminActivity(
-      req.session.adminId,
+      (req.session as any).adminId,
       'view_revenue_analytics',
       'analytics',
       undefined,

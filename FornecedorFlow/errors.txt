@@ -1,0 +1,1 @@
+﻿server/storage.ts(8,8): error TS2724: '"@shared/schema"' has no exported member named 'InsertUser'. Did you mean 'UpsertUser'?

@@ -88,8 +88,8 @@ router.post('/api/admin/login', async (req, res) => {
       .where(eq(admins.id, admin.id));
 
     // Set session
-    req.session.adminId = admin.id;
-    req.session.adminUsername = admin.username;
+    (req.session as any).adminId = admin.id;
+    (req.session as any).adminUsername = admin.username;
 
     // Log activity
     await logAdminActivity(admin.id, 'admin_login', 'admin', admin.id, null, req);
@@ -107,7 +107,7 @@ router.post('/api/admin/login', async (req, res) => {
 
 // Admin logout
 router.post('/api/admin/logout', isAdminAuthenticated, async (req, res) => {
-  const adminId = req.session.adminId;
+  const adminId = (req.session as any).adminId;
 
   if (adminId) {
     await logAdminActivity(adminId, 'admin_logout', 'admin', adminId, null, req);
@@ -123,10 +123,10 @@ router.post('/api/admin/logout', isAdminAuthenticated, async (req, res) => {
 
 // Check admin authentication
 router.get('/api/admin/auth/check', async (req, res) => {
-  if (req.session && req.session.adminId) {
+  if (req.session && (req.session as any).adminId) {
     try {
       const admin = await db.query.admins.findFirst({
-        where: eq(admins.id, req.session.adminId),
+        where: eq(admins.id, (req.session as any).adminId),
       });
 
       if (admin && admin.isActive) {

@@ -38,8 +38,6 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-let appPromise: Promise<express.Express> | null = null;
-
 async function setupApp() {
   const server = await registerRoutes(app);
 
@@ -54,40 +52,22 @@ async function setupApp() {
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
-    // Na Vercel, o roteador Edge serve os estáticos, a Lambda Node só responde a API.
-    // Se tentarmos servir estáticos aqui, ele quebra porque a pasta dist/public
-    // não existe dentro do container Lambda.
-    if (!process.env.VERCEL) {
-      serveStatic(app);
-    }
+    serveStatic(app);
   }
 
   // Start monitoring service
   MonitoringService.start();
 
-  // If we are NOT in Vercel, start the listener naturally
-  if (!process.env.VERCEL) {
-    const port = parseInt(process.env.PORT || '5000', 10);
-    server.listen({
-      port,
-      host: "0.0.0.0",
-    }, () => {
-      log(`serving on port ${port}`);
-      console.log(`🚀 SERVER RESTARTED AT ${new Date().toISOString()}`);
-    });
-  }
+  const port = parseInt(process.env.PORT || '5000', 10);
+  server.listen({
+    port,
+    host: "0.0.0.0",
+  }, () => {
+    log(`serving on port ${port}`);
+    console.log(`🚀 SERVER RESTARTED AT ${new Date().toISOString()}`);
+  });
 
   return app;
 }
 
-// Emulate an async init pattern if running directly or export for Vercel
-appPromise = setupApp();
-
-export default async function handler(req: Request, res: Response) {
-  const appInstance = await appPromise;
-  if (!appInstance) {
-    res.status(500).send("App failed to initialize");
-    return;
-  }
-  return appInstance(req, res);
-}
+setupApp();

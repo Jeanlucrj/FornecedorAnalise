@@ -1,0 +1,68 @@
+# Dependencies
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Development files
+.DS_Store
+*.log
+*.swp
+.vscode
+.idea
+
+# Build artifacts (exceto dist que é necessário)
+.cache
+.temp
+
+# Replit specific
+.replit
+.config
+.local
+.upm
+
+# Test files
+tests
+*.test.ts
+*.test.js
+*.spec.ts
+*.spec.js
+
+# Documentation and assets
+attached_assets
+*.md
+!README.md
+
+# Git
+.git
+.gitignore
+
+# Database and secrets
+*.db
+*.db-*
+serviceAccountKey.json
+firebase-adminsdk-*.json
+
+# Debug and logs
+debug_*.ts
+test_*.ts
+check_*.ts
+*_debug.txt
+error_log.txt
+errors*.txt
+market_data_debug.log
+pagarme_debug.txt
+
+# Migration scripts (rodar localmente)
+scripts/create-admin.ts
+scripts/quick-create-admin.ts
+migrations/*.sql
+run_migration.ts
+fix_plan.ts
+
+# SQL update scripts
+update-*.sql

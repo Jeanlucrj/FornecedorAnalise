@@ -5,14 +5,8 @@
   "license": "MIT",
   "scripts": {
     "dev": "tsx server/index.ts",
-<<<<<<< Updated upstream
     "build": "vite build",
     "start": "NODE_ENV=production tsx server/index.ts",
-=======
-    "build": "vite build && npm run build:server",
-    "build:server": "esbuild server/index.ts --bundle --platform=node --outfile=dist/index.js --format=esm --external:fsevents",
-    "start": "NODE_ENV=production node dist/index.js",
->>>>>>> Stashed changes
     "check": "tsc --noEmit",
     "db:push": "drizzle-kit push"
   },

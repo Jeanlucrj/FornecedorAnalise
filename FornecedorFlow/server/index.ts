@@ -38,7 +38,9 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   next();
 });
 
-(async () => {
+let appPromise: Promise<express.Express> | null = null;
+
+async function setupApp() {
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -49,28 +51,38 @@ app.use((req: Request, res: Response, next: NextFunction) => {
     throw err;
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-  }, () => {
-    log(`serving on port ${port}`);
-    console.log(`🚀 SERVER RESTARTED AT ${new Date().toISOString()}`);
+  // Start monitoring service
+  MonitoringService.start();
 
-    // Iniciar o serviço de monitoramento automático
-    MonitoringService.start();
-  });
-})();
+  // If we are NOT in Vercel, start the listener naturally
+  if (!process.env.VERCEL) {
+    const port = parseInt(process.env.PORT || '5000', 10);
+    server.listen({
+      port,
+      host: "0.0.0.0",
+    }, () => {
+      log(`serving on port ${port}`);
+      console.log(`🚀 SERVER RESTARTED AT ${new Date().toISOString()}`);
+    });
+  }
+
+  return app;
+}
+
+// Emulate an async init pattern if running directly or export for Vercel
+appPromise = setupApp();
+
+export default async function handler(req: Request, res: Response) {
+  const appInstance = await appPromise;
+  if (!appInstance) {
+    res.status(500).send("App failed to initialize");
+    return;
+  }
+  return appInstance(req, res);
+}

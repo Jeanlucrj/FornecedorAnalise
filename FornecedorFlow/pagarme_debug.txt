@@ -12748,3 +12748,254 @@
   ],
   "checkouts": []
 }
+[2026-03-14T03:23:36.198Z] Creating order {
+  "customer_email": "jeanluiz38@gmail.com",
+  "method": "credit_card",
+  "amount": 14700
+}
+[2026-03-14T03:23:36.206Z] Order Payload {
+  "code": "order_1773458616192_nrzwfn",
+  "closed": true,
+  "items": [
+    {
+      "amount": 14700,
+      "description": "Upgrade de Plano - FornecedorFlow",
+      "quantity": 1,
+      "code": "item_1773458616192",
+      "category": "service"
+    }
+  ],
+  "customer": {
+    "name": "JEAN CRUZ",
+    "email": "jeanluiz38@gmail.com",
+    "type": "individual",
+    "document": "02966370769",
+    "code": "cust_1773458616192",
+    "phones": {
+      "mobilePhone": {
+        "countryCode": "55",
+        "areaCode": "11",
+        "number": "988888888"
+      }
+    },
+    "address": {
+      "street": "Rua Exemplo",
+      "number": "123",
+      "zipCode": "01310100",
+      "neighborhood": "Centro",
+      "city": "São Paulo",
+      "state": "SP",
+      "country": "BR",
+      "complement": "",
+      "line1": "Rua Exemplo, 123",
+      "line2": "Centro - São Paulo/SP"
+    },
+    "metadata": {}
+  },
+  "payments": [
+    {
+      "paymentMethod": "credit_card",
+      "amount": 14700,
+      "creditCard": {
+        "recurrence": false,
+        "installments": 1,
+        "statementDescriptor": "FornecedorFl",
+        "operationType": "auth_and_capture",
+        "card": {
+          "billingAddress": {
+            "street": "Rua Exemplo",
+            "number": "123",
+            "zipCode": "01310100",
+            "neighborhood": "Centro",
+            "city": "São Paulo",
+            "state": "SP",
+            "country": "BR",
+            "complement": "",
+            "line1": "Rua Exemplo, 123",
+            "line2": "Centro - São Paulo/SP"
+          },
+          "number": "4111111111111111",
+          "holderName": "JEAN CRUZ",
+          "expMonth": 12,
+          "expYear": 2030,
+          "cvv": "123"
+        }
+      }
+    }
+  ]
+}
+[2026-03-14T03:23:38.455Z] Order result {
+  "id": "or_yrYPEJJI5lcQDpLJ",
+  "code": "order_1773458616192_nrzwfn",
+  "amount": 14700,
+  "currency": "BRL",
+  "closed": true,
+  "items": [
+    {
+      "id": "oi_KZxkmrpS3hwXL3R0",
+      "type": "product",
+      "description": "Upgrade de Plano - FornecedorFlow",
+      "amount": 14700,
+      "quantity": 1,
+      "category": "service",
+      "code": "item_1773458616192",
+      "status": "active",
+      "createdAt": "2026-03-14T03:23:37Z",
+      "updatedAt": "2026-03-14T03:23:37Z"
+    }
+  ],
+  "customer": {
+    "id": "cus_ea34p7URRFnbJgwv",
+    "name": "JEAN CRUZ",
+    "email": "jeanluiz38@gmail.com",
+    "delinquent": false,
+    "createdAt": "2026-03-09T18:50:19Z",
+    "updatedAt": "2026-03-14T03:23:36Z",
+    "document": "02966370769",
+    "type": "individual",
+    "address": {
+      "id": "addr_PR4pav9HycyLygdV",
+      "street": "Rua Exemplo",
+      "number": "123",
+      "complement": "",
+      "zipCode": "01310100",
+      "neighborhood": "Centro",
+      "city": "São Paulo",
+      "state": "SP",
+      "country": "BR",
+      "status": "active",
+      "createdAt": "2026-03-09T18:50:19Z",
+      "updatedAt": "2026-03-14T03:23:36Z",
+      "line1": "Rua Exemplo, 123",
+      "line2": "Centro - São Paulo/SP"
+    },
+    "phones": {
+      "homePhone": {
+        "countryCode": "55",
+        "number": "999999999",
+        "areaCode": "11"
+      },
+      "mobilePhone": {
+        "countryCode": "55",
+        "number": "988888888",
+        "areaCode": "11"
+      }
+    },
+    "code": "cust_1773458616192"
+  },
+  "status": "paid",
+  "createdAt": "2026-03-14T03:23:37Z",
+  "updatedAt": "2026-03-14T03:23:38Z",
+  "closedAt": "2026-03-14T03:23:37Z",
+  "charges": [
+    {
+      "id": "ch_GRXEWqgHkt2E1Lwy",
+      "code": "order_1773458616192_nrzwfn",
+      "gatewayId": "2212799990",
+      "amount": 14700,
+      "status": "paid",
+      "currency": "BRL",
+      "paymentMethod": "credit_card",
+      "createdAt": "2026-03-14T03:23:37Z",
+      "updatedAt": "2026-03-14T03:23:38Z",
+      "lastTransaction": {
+        "statementDescriptor": "FornecedorFl",
+        "acquirerName": "pagarme",
+        "acquirerTid": "2212799990",
+        "acquirerNsu": "2212799990",
+        "acquirerAuthCode": "547254",
+        "operationType": "auth_and_capture",
+        "card": {
+          "id": "card_3Vdk3MdiBSpBz10R",
+          "lastFourDigits": "1111",
+          "brand": "Visa",
+          "holderName": "JEAN CRUZ",
+          "expMonth": 12,
+          "expYear": 2030,
+          "status": "active",
+          "createdAt": "2026-03-09T23:53:17Z",
+          "updatedAt": "2026-03-14T03:23:37Z",
+          "billingAddress": {
+            "street": "Rua Exemplo",
+            "number": "123",
+            "zipCode": "01310100",
+            "neighborhood": "Centro",
+            "city": "São Paulo",
+            "state": "SP",
+            "country": "BR",
+            "complement": "",
+            "line1": "Rua Exemplo, 123",
+            "line2": "Centro - São Paulo/SP"
+          },
+          "type": "credit",
+          "firstSixDigits": "411111"
+        },
+        "acquirerMessage": "Transação aprovada com sucesso",
+        "acquirerReturnCode": "0000",
+        "installments": 1,
+        "fundingSource": "credit",
+        "brandId": "932494",
+        "gatewayId": "2212799990",
+        "amount": 14700,
+        "status": "captured",
+        "success": true,
+        "createdAt": "2026-03-14T03:23:37Z",
+        "updatedAt": "2026-03-14T03:23:37Z",
+        "id": "tran_l3jK3XAc9fk8wN9g",
+        "gatewayResponse": {
+          "code": "200",
+          "errors": []
+        },
+        "antifraudResponse": {
+          "status": "approved",
+          "providerName": "pagarme",
+          "score": "moderated"
+        },
+        "metadata": {},
+        "transactionType": "credit_card"
+      },
+      "customer": {
+        "id": "cus_ea34p7URRFnbJgwv",
+        "name": "JEAN CRUZ",
+        "email": "jeanluiz38@gmail.com",
+        "delinquent": false,
+        "createdAt": "2026-03-09T18:50:19Z",
+        "updatedAt": "2026-03-14T03:23:36Z",
+        "document": "02966370769",
+        "type": "individual",
+        "address": {
+          "id": "addr_PR4pav9HycyLygdV",
+          "street": "Rua Exemplo",
+          "number": "123",
+          "complement": "",
+          "zipCode": "01310100",
+          "neighborhood": "Centro",
+          "city": "São Paulo",
+          "state": "SP",
+          "country": "BR",
+          "status": "active",
+          "createdAt": "2026-03-09T18:50:19Z",
+          "updatedAt": "2026-03-14T03:23:36Z",
+          "line1": "Rua Exemplo, 123",
+          "line2": "Centro - São Paulo/SP"
+        },
+        "phones": {
+          "homePhone": {
+            "countryCode": "55",
+            "number": "999999999",
+            "areaCode": "11"
+          },
+          "mobilePhone": {
+            "countryCode": "55",
+            "number": "988888888",
+            "areaCode": "11"
+          }
+        },
+        "code": "cust_1773458616192"
+      },
+      "paidAt": "2026-03-14T03:23:38Z",
+      "paidAmount": 14700
+    }
+  ],
+  "checkouts": []
+}

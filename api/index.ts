@@ -47,6 +47,44 @@ async function setupRoutes() {
   }
 }
 
+// Diagnostic route
+app.get("/api/health", async (req, res) => {
+  const diagnostics = {
+    databaseUrlSet: !!process.env.DATABASE_URL,
+    sessionSecretSet: !!process.env.SESSION_SECRET,
+    nodeEnv: process.env.NODE_ENV,
+    nodeVersion: process.version,
+    timestamp: new Date().toISOString(),
+  };
+
+  if (!process.env.DATABASE_URL) {
+    return res.status(500).json({
+      status: "error",
+      message: "DATABASE_URL is not set in Vercel environment variables.",
+      diagnostics
+    });
+  }
+
+  try {
+    const { pool: dbPool } = await import("../server/db");
+    const result = await dbPool`SELECT 1 as connected`;
+    return res.json({
+      status: "ok",
+      database: "connected",
+      diagnostics,
+      result
+    });
+  } catch (error: any) {
+    console.error("Health check DB error:", error);
+    return res.status(500).json({
+      status: "error",
+      message: "Database connection failed: " + (error.message || String(error)),
+      diagnostics,
+      hint: "Check if the database is reachable and the credentials are correct. If you see ENETUNREACH, try adding NODE_OPTIONS=--dns-result-order=ipv4first to Vercel env vars."
+    });
+  }
+});
+
 // Error handler
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   const status = err.status || err.statusCode || 500;

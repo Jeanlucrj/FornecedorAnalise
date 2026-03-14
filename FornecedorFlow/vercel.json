@@ -1,15 +1,10 @@
 {
-  "version": 2,
   "buildCommand": "npm run build",
   "outputDirectory": "dist/public",
   "rewrites": [
     {
       "source": "/api/(.*)",
       "destination": "/api"
-    },
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
     }
   ],
   "headers": [
@@ -40,6 +35,5 @@
         }
       ]
     }
-  ],
-  "regions": ["gru1"]
+  ]
 }

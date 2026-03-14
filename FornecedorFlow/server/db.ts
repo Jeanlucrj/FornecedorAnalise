@@ -8,5 +8,5 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-export const pool = postgres(process.env.DATABASE_URL);
+export const pool = postgres(process.env.DATABASE_URL, { prepare: false });
 export const db = drizzle(pool, { schema });

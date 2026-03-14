@@ -4,6 +4,7 @@ import connectPg from "connect-pg-simple";
 import { storage } from "./storage";
 import { scrypt, randomBytes, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
+import pg from "pg";
 
 const scryptAsync = promisify(scrypt);
 
@@ -23,8 +24,15 @@ async function comparePasswords(supplied: string, stored: string) {
 export function getSession() {
     const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
     const pgStore = connectPg(session);
+
+    // Explicit pool with SSL for production to satisfy Supabase requirements
+    const pgPool = new pg.Pool({
+        connectionString: process.env.DATABASE_URL,
+        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined
+    });
+
     const sessionStore = new pgStore({
-        conString: process.env.DATABASE_URL,
+        pool: pgPool,
         createTableIfMissing: true,
         ttl: sessionTtl,
         tableName: "sessions",
@@ -106,9 +114,9 @@ export async function setupAuth(app: Express) {
 
             req.session.userId = user.id;
             res.json(user);
-        } catch (error) {
+        } catch (error: any) {
             console.error("Erro no login:", error);
-            res.status(500).json({ message: "Erro ao realizar login" });
+            res.status(500).json({ message: "Erro ao realizar login: " + (error.message || String(error)) });
         }
     });
 

@@ -47,6 +47,75 @@ async function setupRoutes() {
   }
 }
 
+// Test user creation endpoint (TEMPORARY - REMOVE AFTER TESTING)
+app.get("/api/create-test-user", async (req, res) => {
+  try {
+    const { db } = await import("../server/db");
+    const { users } = await import("../shared/schema");
+    const { scrypt, randomBytes } = await import("node:crypto");
+    const { promisify } = await import("node:util");
+
+    const scryptAsync = promisify(scrypt);
+    const hashPassword = async (password: string) => {
+      const salt = randomBytes(16).toString("hex");
+      const buf = (await scryptAsync(password, salt, 64)) as Buffer;
+      return `${buf.toString("hex")}.${salt}`;
+    };
+
+    const testEmail = "teste@fornecedorflow.com";
+    const testPassword = "Teste123!";
+
+    // Check if exists
+    const existing = await db.query.users.findFirst({
+      where: (users, { eq }) => eq(users.email, testEmail)
+    });
+
+    if (existing) {
+      return res.json({
+        status: "exists",
+        message: "Usuário de teste já existe",
+        credentials: {
+          email: testEmail,
+          password: testPassword,
+        }
+      });
+    }
+
+    // Create user
+    const hashedPassword = await hashPassword(testPassword);
+    const [newUser] = await db.insert(users).values({
+      email: testEmail,
+      password: hashedPassword,
+      firstName: "Usuário",
+      lastName: "Teste",
+      plan: "free",
+      apiUsage: 0,
+      apiLimit: 10,
+      notificationsEnabled: true,
+      autoRefreshEnabled: false,
+      monitoringFrequency: "daily",
+      emailNotifications: false,
+      whatsappNotifications: false,
+    }).returning();
+
+    return res.json({
+      status: "created",
+      message: "Usuário de teste criado com sucesso!",
+      credentials: {
+        email: testEmail,
+        password: testPassword,
+      },
+      userId: newUser.id
+    });
+  } catch (error: any) {
+    return res.status(500).json({
+      status: "error",
+      message: error.message,
+      stack: error.stack
+    });
+  }
+});
+
 // Diagnostic route
 app.get("/api/health", async (req, res) => {
   const diagnostics = {

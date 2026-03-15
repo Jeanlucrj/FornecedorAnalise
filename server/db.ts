@@ -2,39 +2,12 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 import * as schema from "@shared/schema";
 
-// In serverless (Vercel), DATABASE_URL may not be available at import time
-// So we use lazy initialization instead of throwing error immediately
-let poolInstance: postgres.Sql | null = null;
-let dbInstance: ReturnType<typeof drizzle> | null = null;
+// Serverless-friendly: initialize only when DATABASE_URL is available
+const DATABASE_URL = process.env.DATABASE_URL || '';
 
-function getPool() {
-  if (!poolInstance) {
-    if (!process.env.DATABASE_URL) {
-      throw new Error(
-        "DATABASE_URL must be set. Did you forget to provision a database?",
-      );
-    }
-    poolInstance = postgres(process.env.DATABASE_URL, { prepare: false });
-  }
-  return poolInstance;
-}
+// Create connection only if DATABASE_URL exists (runtime check)
+export const pool = DATABASE_URL
+  ? postgres(DATABASE_URL, { prepare: false })
+  : null as any; // Will throw proper error on first use if null
 
-function getDb() {
-  if (!dbInstance) {
-    dbInstance = drizzle(getPool(), { schema });
-  }
-  return dbInstance;
-}
-
-// Export lazy getters
-export const pool = new Proxy({} as postgres.Sql, {
-  get(_target, prop) {
-    return getPool()[prop as keyof postgres.Sql];
-  }
-});
-
-export const db = new Proxy({} as ReturnType<typeof drizzle>, {
-  get(_target, prop) {
-    return getDb()[prop as keyof ReturnType<typeof drizzle>];
-  }
-});
+export const db = pool ? drizzle(pool, { schema }) : null as any;

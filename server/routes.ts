@@ -7,12 +7,14 @@ import { scoringService } from "./services/scoringService.js";
 import { reportService } from "./services/reportService.js";
 import { marketDataService } from "./services/marketDataService.js";
 import { NotificationService } from "./services/notificationService.js";
-import { insertValidationSchema, insertSupplierSchema } from "../shared/schema.js";
+import { db } from "./db.js";
+import { insertValidationSchema, insertSupplierSchema, activityLogs } from "../shared/schema.js";
 import { PLANS } from "../shared/plans.js";
 import { z } from "zod";
 import { adminAuthRouter } from "./adminAuth.js";
 import { adminRoutes } from "./adminRoutes.js";
 import { pagarmeService } from "./services/pagarmeService.js";
+import { eq } from "drizzle-orm";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -488,8 +490,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const planInfo = PLANS[plan as keyof typeof PLANS];
 
       const updatedUser = await storage.updateUser(userId, {
-        plan: plan as string,
+        plan: plan as any,
         apiLimit: planInfo.limit,
+        apiUsage: 0,
+        planUpdatedAt: new Date(),
         updatedAt: new Date()
       });
 

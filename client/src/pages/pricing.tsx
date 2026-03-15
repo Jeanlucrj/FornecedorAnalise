@@ -8,10 +8,12 @@ import { useAuth } from "@/hooks/useAuth";
 import { PLANS } from "@shared/plans";
 import CheckoutDialog from "@/components/CheckoutDialog";
 import { useState, useEffect } from "react";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Pricing() {
     const [, setLocation] = useLocation();
     const { user } = useAuth();
+    const { toast } = useToast();
     const [checkoutOpen, setCheckoutOpen] = useState(false);
     const [selectedPlanId, setSelectedPlanId] = useState<string>("");
 
@@ -19,8 +21,12 @@ export default function Pricing() {
         const params = new URLSearchParams(window.location.search);
         const planParam = params.get('plan');
         if (planParam && PLANS[planParam as keyof typeof PLANS]) {
-            setSelectedPlanId(planParam);
-            setCheckoutOpen(true);
+            if (planParam === 'free') {
+                handleSelectPlan('free');
+            } else {
+                setSelectedPlanId(planParam);
+                setCheckoutOpen(true);
+            }
         }
     }, []);
 
@@ -71,9 +77,37 @@ export default function Pricing() {
         }
     ];
 
-    const handleSelectPlan = (planId: string) => {
+    const handleSelectPlan = async (planId: string) => {
         if (planId === 'free') {
-            setLocation('/');
+            try {
+                const response = await fetch('/api/upgrade', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ plan: 'free' })
+                });
+
+                if (response.ok) {
+                    toast({
+                        title: "Plano ativado!",
+                        description: "Você já pode começar a usar o ValidaFornecedor.",
+                    });
+                    setLocation('/');
+                } else {
+                    const data = await response.json();
+                    toast({
+                        variant: "destructive",
+                        title: "Erro ao ativar plano",
+                        description: data.message || "Ocorreu um erro inesperado.",
+                    });
+                }
+            } catch (error) {
+                console.error("Error activating free plan:", error);
+                toast({
+                    variant: "destructive",
+                    title: "Erro de conexão",
+                    description: "Não foi possível conectar ao servidor.",
+                });
+            }
             return;
         }
 

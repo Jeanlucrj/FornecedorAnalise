@@ -96,6 +96,34 @@ app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
 
 // Vercel serverless function handler
 export default async function handler(req: Request, res: Response) {
-  await setupRoutes();
-  return app(req, res);
+  try {
+    // Check critical environment variables before initialization
+    if (!process.env.DATABASE_URL) {
+      console.error('CRITICAL: DATABASE_URL is not set in Vercel environment variables');
+      return res.status(500).json({
+        error: 'Database configuration missing',
+        message: 'DATABASE_URL environment variable is not configured. Please add it in Vercel Project Settings > Environment Variables',
+        hint: 'Go to https://vercel.com/your-project/settings/environment-variables',
+        timestamp: new Date().toISOString()
+      });
+    }
+
+    if (!process.env.SESSION_SECRET) {
+      console.error('WARNING: SESSION_SECRET is not set, using default (INSECURE)');
+    }
+
+    await setupRoutes();
+    return app(req, res);
+  } catch (error: any) {
+    console.error('Serverless function initialization error:', error);
+    console.error('Error stack:', error.stack);
+
+    return res.status(500).json({
+      error: 'Function initialization failed',
+      message: error.message || 'Unknown error occurred',
+      details: process.env.NODE_ENV === 'development' ? error.stack : undefined,
+      timestamp: new Date().toISOString(),
+      hint: 'Check Vercel Function Logs for detailed error information'
+    });
+  }
 }

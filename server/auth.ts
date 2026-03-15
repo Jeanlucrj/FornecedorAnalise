@@ -21,33 +21,55 @@ async function comparePasswords(supplied: string, stored: string) {
     return timingSafeEqual(hashedBuf, suppliedBuf);
 }
 
+// Singleton pool instance to reuse across serverless invocations
+let pgPoolInstance: pg.Pool | null = null;
+
+function getPgPool() {
+    if (!pgPoolInstance) {
+        console.log('🔌 Creating new PostgreSQL pool for sessions...');
+        pgPoolInstance = new pg.Pool({
+            connectionString: process.env.DATABASE_URL,
+            ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined,
+            max: 1, // Minimize connections in serverless
+            idleTimeoutMillis: 10000,
+            connectionTimeoutMillis: 10000,
+        });
+
+        // Handle pool errors
+        pgPoolInstance.on('error', (err) => {
+            console.error('❌ PostgreSQL pool error:', err);
+        });
+    }
+    return pgPoolInstance;
+}
+
 export function getSession() {
     const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
     const pgStore = connectPg(session);
 
-    // Explicit pool with SSL for production to satisfy Supabase requirements
-    const pgPool = new pg.Pool({
-        connectionString: process.env.DATABASE_URL,
-        ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : undefined
-    });
-
     const sessionStore = new pgStore({
-        pool: pgPool,
+        pool: getPgPool(),
         createTableIfMissing: true,
         ttl: sessionTtl,
         tableName: "sessions",
+        errorLog: (err) => {
+            console.error('❌ Session store error:', err);
+        },
     });
+
+    const isProduction = process.env.NODE_ENV === 'production';
 
     return session({
         secret: process.env.SESSION_SECRET || 'local-dev-secret',
         store: sessionStore,
         resave: false,
         saveUninitialized: false,
+        rolling: true, // Refresh cookie on each request
         cookie: {
             httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
+            secure: isProduction,
             maxAge: sessionTtl,
-            sameSite: 'lax',
+            sameSite: 'lax', // Keep lax for better compatibility
         },
     });
 }
@@ -101,6 +123,7 @@ export async function setupAuth(app: Express) {
 
     app.post("/api/login", async (req, res) => {
         try {
+            console.log('🔐 Login attempt for:', req.body.email);
             const { email, password } = req.body;
 
             if (!email || !password) {
@@ -108,15 +131,41 @@ export async function setupAuth(app: Express) {
             }
 
             const user = await storage.getUserByEmail(email);
-            if (!user || !(await comparePasswords(password, user.password))) {
+            if (!user) {
+                console.log('❌ User not found:', email);
                 return res.status(401).json({ message: "E-mail ou senha incorretos" });
             }
 
+            const passwordMatch = await comparePasswords(password, user.password);
+            if (!passwordMatch) {
+                console.log('❌ Password mismatch for:', email);
+                return res.status(401).json({ message: "E-mail ou senha incorretos" });
+            }
+
+            console.log('✅ Authentication successful for:', email);
+
+            // Save session and wait for it to complete
             req.session.userId = user.id;
+            await new Promise((resolve, reject) => {
+                req.session.save((err) => {
+                    if (err) {
+                        console.error('❌ Session save error:', err);
+                        reject(err);
+                    } else {
+                        console.log('✅ Session saved successfully');
+                        resolve(true);
+                    }
+                });
+            });
+
             res.json(user);
         } catch (error: any) {
-            console.error("Erro no login:", error);
-            res.status(500).json({ message: "Erro ao realizar login: " + (error.message || String(error)) });
+            console.error("❌ Login error:", error);
+            console.error("Error stack:", error.stack);
+            res.status(500).json({
+                message: "Erro de conexão. Tente novamente.",
+                details: process.env.NODE_ENV === 'development' ? error.message : undefined
+            });
         }
     });
 

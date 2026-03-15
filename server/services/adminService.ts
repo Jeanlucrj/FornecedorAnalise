@@ -1,5 +1,5 @@
 import { db } from '../db.js';
-import { users, validations, suppliers, activityLogs, alerts } from '../../shared/schema';
+import { users, validations, suppliers, activityLogs, alerts } from '../../shared/schema.js';
 import { eq, desc, sql, and, gte, lte, count } from 'drizzle-orm';
 
 interface DateRange {
@@ -13,9 +13,9 @@ export class AdminService {
     try {
       const whereClause = dateRange?.startDate && dateRange?.endDate
         ? and(
-            gte(users.createdAt, dateRange.startDate),
-            lte(users.createdAt, dateRange.endDate)
-          )
+          gte(users.createdAt, dateRange.startDate),
+          lte(users.createdAt, dateRange.endDate)
+        )
         : undefined;
 
       // Total users
@@ -107,34 +107,30 @@ export class AdminService {
   // Get all users with details
   async getAllUsers(limit = 100, offset = 0) {
     try {
-      const allUsers = await db.query.users.findMany({
-        limit,
-        offset,
-        orderBy: [desc(users.createdAt)],
-      });
+      console.log(`🔍 [AdminService] Fetching users (limit: ${limit}, offset: ${offset})...`);
+
+      const allUsers = await db
+        .select()
+        .from(users)
+        .orderBy(desc(users.createdAt))
+        .limit(limit)
+        .offset(offset);
+
+      console.log(`✅ [AdminService] Found ${allUsers.length} users in this batch.`);
 
       const totalResult = await db.select({ count: count() }).from(users);
-      const total = totalResult[0]?.count || 0;
+      const total = Number(totalResult[0]?.count || 0);
+
+      console.log(`📊 [AdminService] Total users in DB: ${total}`);
 
       return {
-        users: allUsers.map(user => ({
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          plan: user.plan,
-          apiUsage: user.apiUsage,
-          apiLimit: user.apiLimit,
-          createdAt: user.createdAt,
-          lastLoginAt: user.lastLoginAt,
-          isAdmin: user.isAdmin,
-        })),
+        users: allUsers,
         total,
         limit,
         offset,
       };
     } catch (error) {
-      console.error('Error getting all users:', error);
+      console.error('❌ [AdminService] Error getting all users:', error);
       throw error;
     }
   }

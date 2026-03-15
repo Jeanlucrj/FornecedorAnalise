@@ -92,19 +92,19 @@ export default function AdminDashboard() {
   }, [setLocation]);
 
   // Fetch platform stats
-  const { data: stats, isLoading: loadingStats } = useQuery<PlatformStats>({
+  const { data: stats, isLoading: loadingStats, error: statsError } = useQuery<PlatformStats>({
     queryKey: ["/api/admin/stats"],
     enabled: isAuthenticated === true,
   });
 
   // Fetch users
-  const { data: usersData, isLoading: loadingUsers } = useQuery<{ users: User[]; total: number }>({
+  const { data: usersData, isLoading: loadingUsers, error: usersError } = useQuery<{ users: User[]; total: number }>({
     queryKey: ["/api/admin/users"],
     enabled: isAuthenticated === true,
   });
 
   // Fetch activity logs
-  const { data: logsData, isLoading: loadingLogs } = useQuery<{ logs: ActivityLog[]; total: number }>({
+  const { data: logsData, isLoading: loadingLogs, error: logsError } = useQuery<{ logs: ActivityLog[]; total: number }>({
     queryKey: ["/api/admin/logs", { limit: 50 }],
     enabled: isAuthenticated === true,
   });
@@ -116,7 +116,7 @@ export default function AdminDashboard() {
   });
 
   // Fetch revenue metrics
-  const { data: revenue } = useQuery<{
+  const { data: revenue, error: revenueError } = useQuery<{
     revenueByPlan: Array<{ plan: string; users: number; revenue: number }>;
     totalRevenue: number;
     mrr: number;
@@ -124,6 +124,8 @@ export default function AdminDashboard() {
     queryKey: ["/api/admin/analytics/revenue"],
     enabled: isAuthenticated === true,
   });
+
+  const queryError = statsError || usersError || logsError || revenueError;
 
   const handleLogout = async () => {
     try {
@@ -263,45 +265,61 @@ export default function AdminDashboard() {
                 </CardDescription>
               </CardHeader>
               <CardContent>
-                {loadingUsers ? (
-                  <div className="text-center py-8">Carregando...</div>
+                {usersError ? (
+                  <div className="text-center py-8 text-red-500">
+                    <AlertCircle className="h-8 w-8 mx-auto mb-2" />
+                    <p>Erro ao carregar usuários. Por favor, tente novamente.</p>
+                  </div>
+                ) : loadingUsers ? (
+                  <div className="text-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
+                    <p>Carregando lista de usuários...</p>
+                  </div>
                 ) : (
                   <div className="space-y-4">
                     <div className="grid grid-cols-1 gap-4">
-                      {usersData?.users.map((user) => (
-                        <div
-                          key={user.id}
-                          className="border rounded-lg p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex-1">
-                              <div className="flex items-center gap-3">
-                                <h3 className="font-semibold">
-                                  {user.firstName} {user.lastName}
-                                </h3>
-                                <Badge variant={
-                                  user.plan === 'enterprise' ? 'default' :
-                                  user.plan === 'pro' ? 'secondary' : 'outline'
-                                }>
-                                  {user.plan}
-                                </Badge>
-                              </div>
-                              <p className="text-sm text-muted-foreground">{user.email}</p>
-                              <div className="mt-2 flex items-center gap-4 text-sm">
-                                <span>
-                                  API: {user.apiUsage}/{user.apiLimit}
-                                </span>
-                                <span className="text-muted-foreground">
-                                  Cadastrado em: {new Date(user.createdAt).toLocaleDateString('pt-BR')}
-                                </span>
+                      {usersData?.users && usersData.users.length > 0 ? (
+                        usersData.users.map((user) => (
+                          <div
+                            key={user.id}
+                            className="border rounded-lg p-4 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div className="flex-1">
+                                <div className="flex items-center gap-3">
+                                  <h3 className="font-semibold text-lg">
+                                    {user.firstName || 'Sem Nome'} {user.lastName || ''}
+                                  </h3>
+                                  <Badge variant={
+                                    user.plan === 'enterprise' ? 'default' :
+                                      user.plan === 'pro' ? 'secondary' : 'outline'
+                                  }>
+                                    {user.plan}
+                                  </Badge>
+                                </div>
+                                <p className="text-sm text-muted-foreground">{user.email}</p>
+                                <div className="mt-2 flex items-center gap-4 text-sm">
+                                  <span>
+                                    API: <strong>{user.apiUsage || 0}</strong> / {user.apiLimit || 0}
+                                  </span>
+                                  <span className="text-muted-foreground">
+                                    Cadastrado em: {new Date(user.createdAt).toLocaleString('pt-BR')}
+                                  </span>
+                                </div>
                               </div>
                             </div>
                           </div>
+                        ))
+                      ) : (
+                        <div className="text-center py-12 border-2 border-dashed rounded-xl">
+                          <Users className="h-12 w-12 text-slate-300 mx-auto mb-4" />
+                          <p className="text-slate-500 font-medium">Nenhum usuário encontrado na base de dados.</p>
+                          <p className="text-sm text-slate-400 mt-1">Isso pode ser um erro de sincronização temporário.</p>
                         </div>
-                      ))}
+                      )}
                     </div>
-                    <div className="text-sm text-muted-foreground text-center">
-                      Total: {usersData?.total || 0} usuários
+                    <div className="text-sm font-semibold text-slate-500 text-center border-t pt-4">
+                      Total de usuários registrados: {usersData?.total ?? 0}
                     </div>
                   </div>
                 )}
@@ -318,10 +336,9 @@ export default function AdminDashboard() {
                   {Object.entries(stats?.usersByPlan || {}).map(([plan, count]) => (
                     <div key={plan} className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <div className={`w-3 h-3 rounded-full ${
-                          plan === 'enterprise' ? 'bg-blue-500' :
+                        <div className={`w-3 h-3 rounded-full ${plan === 'enterprise' ? 'bg-blue-500' :
                           plan === 'pro' ? 'bg-purple-500' : 'bg-gray-500'
-                        }`} />
+                          }`} />
                         <span className="font-medium capitalize">{plan}</span>
                       </div>
                       <span className="text-2xl font-bold">{count}</span>

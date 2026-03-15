@@ -56,7 +56,7 @@ app.get("/api/ping", (_req, res) => {
 app.get("/api/create-test-user", async (req, res) => {
   try {
     const { db } = await import("../server/db.js");
-    const { users } = await import("../shared/schema");
+    const { users } = await import("../shared/schema.js");
     const { scrypt, randomBytes } = await import("node:crypto");
     const { promisify } = await import("node:util");
 

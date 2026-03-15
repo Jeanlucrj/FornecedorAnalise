@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { db } from './db.js';
-import { admins, activityLogs } from '../shared/schema';
+import { admins, activityLogs } from '../shared/schema.js';
 import { eq } from 'drizzle-orm';
 import crypto from 'crypto';
 import { promisify } from 'util';

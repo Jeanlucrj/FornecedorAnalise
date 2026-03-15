@@ -178,6 +178,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Increment API usage
       await storage.incrementApiUsage(userId);
 
+      // Log success in activity logs
+      await db.insert(activityLogs).values({
+        userId,
+        action: 'validation_success',
+        resource: 'validation',
+        resourceId: validation.id,
+        details: { cnpj, score, status }
+      });
+
       // Create alert if score is low and send notifications
       if (score < 50) {
         try {
@@ -225,6 +234,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
     } catch (error) {
       console.error("Validation error:", error);
+
+      // Log failure in activity logs
+      try {
+        const userId = req.session.userId;
+        if (userId) {
+          await db.insert(activityLogs).values({
+            userId,
+            action: 'validation_error',
+            resource: 'validation',
+            details: {
+              error: error instanceof Error ? error.message : String(error),
+              cnpj: req.body?.cnpj,
+              analysisType: req.body?.analysisType
+            }
+          });
+        }
+      } catch (logError) {
+        console.error("Failed to log validation error:", logError);
+      }
+
       res.status(500).json({
         message: error instanceof Error ? error.message : "Validation failed"
       });

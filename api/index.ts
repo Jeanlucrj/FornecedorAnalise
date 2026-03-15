@@ -1,4 +1,4 @@
-import "dotenv/config";
+// Note: dotenv is NOT needed in Vercel serverless - env vars are injected automatically
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "../server/routes";
 

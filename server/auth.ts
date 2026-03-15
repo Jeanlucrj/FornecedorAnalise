@@ -1,6 +1,7 @@
 import type { Express, RequestHandler } from "express";
 import session from "express-session";
 import connectPg from "connect-pg-simple";
+import MemoryStore from "memorystore";
 import { storage } from "./storage";
 import { scrypt, randomBytes, timingSafeEqual } from "node:crypto";
 import { promisify } from "node:util";
@@ -45,19 +46,32 @@ function getPgPool() {
 
 export function getSession() {
     const sessionTtl = 7 * 24 * 60 * 60 * 1000; // 1 week
-    const pgStore = connectPg(session);
-
-    const sessionStore = new pgStore({
-        pool: getPgPool(),
-        createTableIfMissing: true,
-        ttl: sessionTtl,
-        tableName: "sessions",
-        errorLog: (err) => {
-            console.error('❌ Session store error:', err);
-        },
-    });
-
     const isProduction = process.env.NODE_ENV === 'production';
+
+    let sessionStore;
+
+    // Use MemoryStore in serverless production to avoid connection issues
+    // In development or non-serverless environments, use PostgreSQL
+    if (isProduction && process.env.VERCEL) {
+        console.log('🧠 Using MemoryStore for sessions (Vercel serverless)');
+        const MemStore = MemoryStore(session);
+        sessionStore = new MemStore({
+            checkPeriod: sessionTtl,
+            ttl: sessionTtl,
+        });
+    } else {
+        console.log('🔌 Using PostgreSQL for sessions (local/development)');
+        const pgStore = connectPg(session);
+        sessionStore = new pgStore({
+            pool: getPgPool(),
+            createTableIfMissing: true,
+            ttl: sessionTtl,
+            tableName: "sessions",
+            errorLog: (err) => {
+                console.error('❌ Session store error:', err);
+            },
+        });
+    }
 
     return session({
         secret: process.env.SESSION_SECRET || 'local-dev-secret',

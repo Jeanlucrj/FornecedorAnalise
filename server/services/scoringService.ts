@@ -1,4 +1,4 @@
-import { Supplier } from "@shared/schema";
+import { Supplier } from "../../shared/schema.js";
 import { RiskAnalysisData } from "./riskAnalysisService.js";
 
 interface ScoringWeights {

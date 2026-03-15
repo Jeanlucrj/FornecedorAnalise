@@ -1,4 +1,4 @@
-import { Validation, Supplier, Partner } from "@shared/schema";
+import { Validation, Supplier, Partner } from "../../shared/schema.js";
 import PDFDocument from 'pdfkit';
 
 interface ReportData {

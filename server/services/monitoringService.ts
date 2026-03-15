@@ -78,7 +78,7 @@ export class MonitoringService {
   private static async getUsersWithAutoRefresh() {
     try {
       const { db } = await import("../db.js");
-      const { users } = await import("@shared/schema");
+      const { users } = await import("../../shared/schema.js");
       const { eq, and, or } = await import("drizzle-orm");
       
       // Buscar usuários com auto-refresh ativado E plano pro ou superior
@@ -117,7 +117,7 @@ export class MonitoringService {
     try {
       // Buscar a última verificação feita para este usuário
       const { db } = await import("../db.js");
-      const { validations } = await import("@shared/schema");
+      const { validations } = await import("../../shared/schema.js");
       const { eq, desc } = await import("drizzle-orm");
       
       const lastValidation = await db

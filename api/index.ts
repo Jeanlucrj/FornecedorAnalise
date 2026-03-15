@@ -51,10 +51,12 @@ async function setupRoutes() {
 app.get("/api/health", async (req, res) => {
   const diagnostics = {
     databaseUrlSet: !!process.env.DATABASE_URL,
+    databaseUrlPrefix: process.env.DATABASE_URL?.substring(0, 20) + '...',
     sessionSecretSet: !!process.env.SESSION_SECRET,
     nodeEnv: process.env.NODE_ENV,
     nodeVersion: process.version,
     timestamp: new Date().toISOString(),
+    allEnvKeys: Object.keys(process.env).filter(k => !k.includes('VERCEL')).sort(),
   };
 
   if (!process.env.DATABASE_URL) {

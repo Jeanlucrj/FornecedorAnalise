@@ -47,6 +47,11 @@ async function setupRoutes() {
   }
 }
 
+// Simple diagnostic endpoint that doesn't require any dependencies
+app.get("/api/ping", (_req, res) => {
+  res.json({ status: "ok", timestamp: new Date().toISOString() });
+});
+
 // Test user creation endpoint (TEMPORARY - REMOVE AFTER TESTING)
 app.get("/api/create-test-user", async (req, res) => {
   try {

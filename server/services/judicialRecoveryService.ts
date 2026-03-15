@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { publicApisService } from './publicApisService';
+import { publicApisService } from './publicApisService.js';
 
 interface JudicialRecoveryData {
   isInRecovery: boolean;

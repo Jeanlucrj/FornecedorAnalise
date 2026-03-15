@@ -1,5 +1,5 @@
 import { Supplier } from "@shared/schema";
-import { RiskAnalysisData } from "./riskAnalysisService";
+import { RiskAnalysisData } from "./riskAnalysisService.js";
 
 interface ScoringWeights {
   cadastralStatus: number;

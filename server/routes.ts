@@ -1,18 +1,18 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./auth";
-import { cnpjService } from "./services/cnpjService";
-import { scoringService } from "./services/scoringService";
-import { reportService } from "./services/reportService";
-import { marketDataService } from "./services/marketDataService";
-import { NotificationService } from "./services/notificationService";
+import { storage } from "./storage.js";
+import { setupAuth, isAuthenticated } from "./auth.js";
+import { cnpjService } from "./services/cnpjService.js";
+import { scoringService } from "./services/scoringService.js";
+import { reportService } from "./services/reportService.js";
+import { marketDataService } from "./services/marketDataService.js";
+import { NotificationService } from "./services/notificationService.js";
 import { insertValidationSchema, insertSupplierSchema } from "@shared/schema";
 import { PLANS } from "@shared/plans";
 import { z } from "zod";
-import { adminAuthRouter } from "./adminAuth";
-import { adminRoutes } from "./adminRoutes";
-import { pagarmeService } from "./services/pagarmeService";
+import { adminAuthRouter } from "./adminAuth.js";
+import { adminRoutes } from "./adminRoutes.js";
+import { pagarmeService } from "./services/pagarmeService.js";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -287,7 +287,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         })
       );
 
-      const { reportService } = await import("./services/reportService");
+      const { reportService } = await import("./services/reportService.js");
       const pdfBuffer = await reportService.generateConsolidatedPDF(records);
 
       const date = new Date().toISOString().split('T')[0];
@@ -343,7 +343,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const partners = await storage.getPartnersBySupplier(validation.supplierId!);
 
       // Generate PDF
-      const { reportService } = await import("./services/reportService");
+      const { reportService } = await import("./services/reportService.js");
       const pdfBuffer = await reportService.generatePDF({
         validation,
         supplier,
@@ -564,7 +564,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Monitoring status endpoint
   app.get("/api/monitoring/status", isAuthenticated, async (req: any, res) => {
     try {
-      const { MonitoringService } = await import("./services/monitoringService");
+      const { MonitoringService } = await import("./services/monitoringService.js");
       const status = MonitoringService.getStatus();
       res.json(status);
     } catch (error) {
@@ -576,7 +576,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Manual monitoring check endpoint (for testing)
   app.post("/api/monitoring/check", isAuthenticated, async (req: any, res) => {
     try {
-      const { MonitoringService } = await import("./services/monitoringService");
+      const { MonitoringService } = await import("./services/monitoringService.js");
       await MonitoringService.runManualCheck();
       res.json({ message: "Manual monitoring check completed" });
     } catch (error) {

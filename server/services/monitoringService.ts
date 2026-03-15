@@ -1,7 +1,7 @@
-import { storage } from "../storage";
-import { cnpjService } from "./cnpjService";
-import { scoringService } from "./scoringService";
-import { NotificationService } from "./notificationService";
+import { storage } from "../storage.js";
+import { cnpjService } from "./cnpjService.js";
+import { scoringService } from "./scoringService.js";
+import { NotificationService } from "./notificationService.js";
 
 export class MonitoringService {
   private static isRunning = false;
@@ -77,7 +77,7 @@ export class MonitoringService {
    */
   private static async getUsersWithAutoRefresh() {
     try {
-      const { db } = await import("../db");
+      const { db } = await import("../db.js");
       const { users } = await import("@shared/schema");
       const { eq, and, or } = await import("drizzle-orm");
       
@@ -116,7 +116,7 @@ export class MonitoringService {
   private static async shouldMonitorUser(user: any, currentTime: Date): Promise<boolean> {
     try {
       // Buscar a última verificação feita para este usuário
-      const { db } = await import("../db");
+      const { db } = await import("../db.js");
       const { validations } = await import("@shared/schema");
       const { eq, desc } = await import("drizzle-orm");
       

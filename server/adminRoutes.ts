@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import { adminService } from './services/adminService';
-import { isAdminAuthenticated, logAdminActivity } from './adminAuth';
+import { adminService } from './services/adminService.js';
+import { isAdminAuthenticated, logAdminActivity } from './adminAuth.js';
 
 const router = Router();
 

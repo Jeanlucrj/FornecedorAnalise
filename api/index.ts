@@ -55,7 +55,7 @@ app.get("/api/ping", (_req, res) => {
 // Test user creation endpoint (TEMPORARY - REMOVE AFTER TESTING)
 app.get("/api/create-test-user", async (req, res) => {
   try {
-    const { db } = await import("../server/db");
+    const { db } = await import("../server/db.js");
     const { users } = await import("../shared/schema");
     const { scrypt, randomBytes } = await import("node:crypto");
     const { promisify } = await import("node:util");
@@ -142,7 +142,7 @@ app.get("/api/health", async (req, res) => {
   }
 
   try {
-    const { pool: dbPool } = await import("../server/db");
+    const { pool: dbPool } = await import("../server/db.js");
     const result = await dbPool`SELECT 1 as connected`;
     return res.json({
       status: "ok",

@@ -1,9 +1,9 @@
 import axios from 'axios';
-import { publicApisService, type PublicCnpjData } from './publicApisService';
-import { judicialRecoveryService } from './judicialRecoveryService';
-import { certificatesService } from './certificatesService';
-import { publicDataEnrichmentService } from './publicDataEnrichmentService';
-import { riskAnalysisService, RiskAnalysisData } from './riskAnalysisService';
+import { publicApisService, type PublicCnpjData } from './publicApisService.js';
+import { judicialRecoveryService } from './judicialRecoveryService.js';
+import { certificatesService } from './certificatesService.js';
+import { publicDataEnrichmentService } from './publicDataEnrichmentService.js';
+import { riskAnalysisService, RiskAnalysisData } from './riskAnalysisService.js';
 
 interface SupplierData {
   companyName: string;

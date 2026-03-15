@@ -15,7 +15,7 @@ import {
   type Alert,
   type InsertAlert,
 } from "@shared/schema";
-import { db } from "./db";
+import { db } from "./db.js";
 import { eq, desc, and, or, like, gte, lte, count, sql } from "drizzle-orm";
 import { nanoid } from "nanoid";
 

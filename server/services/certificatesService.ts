@@ -1,6 +1,6 @@
 import axios from 'axios';
-import { publicApisService } from './publicApisService';
-import { judicialRecoveryService } from './judicialRecoveryService';
+import { publicApisService } from './publicApisService.js';
+import { judicialRecoveryService } from './judicialRecoveryService.js';
 
 interface CertificateData {
   status: 'valid' | 'invalid' | 'expired' | 'expiring';

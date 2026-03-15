@@ -1,4 +1,4 @@
-import { db } from '../db';
+import { db } from '../db.js';
 import { users, validations, suppliers, activityLogs, alerts } from '../../shared/schema';
 import { eq, desc, sql, and, gte, lte, count } from 'drizzle-orm';
 

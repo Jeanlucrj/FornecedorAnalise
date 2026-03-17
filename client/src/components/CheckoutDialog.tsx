@@ -88,7 +88,7 @@ export default function CheckoutDialog({ open, onOpenChange, planId }: CheckoutD
             clearInterval(interval);
             clearTimeout(timeout);
         };
-    }, [orderId, pixData, success, plan.name, toast]);
+    }, [orderId, pixData, success, plan.name, toast, queryClient]);
 
     const [cardData, setCardData] = useState({
         number: "",

@@ -21,8 +21,10 @@ export class PagarmeService {
 
     private getControllers() {
         if (!this.client || !this.ordersController) {
-            const secretKey = process.env.PAGARME_SECRET_KEY || '';
+            // Trim to remove any whitespace/newlines from environment variable
+            const secretKey = (process.env.PAGARME_SECRET_KEY || '').trim();
             console.log(`[PAGARME] Initializing client with key: ${secretKey.slice(0, 10)}...`);
+            console.log(`[PAGARME] Key length: ${secretKey.length} chars`);
 
             this.client = new Client({
                 basicAuthCredentials: {

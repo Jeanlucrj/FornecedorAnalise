@@ -307,7 +307,7 @@ export default function Landing() {
               <CardHeader>
                 <CardTitle>Gratuito</CardTitle>
                 <CardDescription>Ideal para testes</CardDescription>
-                <div className="text-3xl font-bold text-foreground">R$ 0</div>
+                <div className="text-3xl font-bold text-foreground">R$ 1</div>
                 <div className="text-sm text-muted-foreground">/mês</div>
               </CardHeader>
               <CardContent>

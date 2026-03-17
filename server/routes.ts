@@ -525,13 +525,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Usuário não encontrado" });
       }
 
+      // Validate and sanitize customer data
+      const customerEmail = user.email || 'contato@fornecedorflow.com.br';
+      const customerName = (customer?.name || user.firstName || 'Cliente FornecedorFlow').trim();
+      const customerCpf = (customer?.cpf || user.document || '').replace(/\D/g, '');
+
+      console.log('[CHECKOUT] Customer data:', {
+        email: customerEmail,
+        name: customerName,
+        cpf: customerCpf,
+        hasUser: !!user
+      });
+
+      // Validate email format
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+      if (!emailRegex.test(customerEmail)) {
+        console.error('[CHECKOUT] Invalid email:', customerEmail);
+        return res.status(400).json({
+          message: "Email inválido. Por favor, atualize seu cadastro."
+        });
+      }
+
       const order = await pagarmeService.createOrder({
         amount: planInfo.price * 100, // Pagar.me uses cents
         paymentMethod,
         customer: {
-          name: customer?.name || user.firstName || 'Usuário',
-          email: user.email || 'contato@fornecedorflow.com.br',
-          cpf: customer?.cpf || user.document?.replace(/\D/g, ''),
+          name: customerName,
+          email: customerEmail,
+          cpf: customerCpf,
           phone: user.phone || (customer as any)?.phone,
           address: {
             city: user.city || (customer as any)?.address?.city,
@@ -541,7 +562,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         cardToken,
         cardData,
         metadata: {
-          userId: userId,
+          userId: userId.toString(),
           plan: plan,
           planName: planInfo.name,
         }

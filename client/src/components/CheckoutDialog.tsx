@@ -102,11 +102,18 @@ export default function CheckoutDialog({ open, onOpenChange, planId }: CheckoutD
 
             if (!response.ok) {
                 const errorData = await response.json();
-                console.error("Checkout response error:", errorData);
+                console.error("❌ Checkout response error:", errorData);
+                console.error("❌ Full error object:", JSON.stringify(errorData, null, 2));
 
                 let errorMessage = errorData.message || "Erro ao processar pagamento.";
 
+                // Log detailed error information
+                if (errorData.debug) {
+                    console.error("🔍 Debug info:", errorData.debug);
+                }
+
                 if (errorData.error) {
+                    console.error("🔍 Error details:", errorData.error);
                     const err = typeof errorData.error === 'string' ? errorData.error : JSON.stringify(errorData.error);
 
                     if (err.includes('Sem ambiente configurado')) {
@@ -117,12 +124,16 @@ export default function CheckoutDialog({ open, onOpenChange, planId }: CheckoutD
                         errorMessage = "Saldo insuficiente no cartão.";
                     } else if (err.includes('not a valid card number')) {
                         errorMessage = "Número de cartão inválido. Verifique os dados do cartão.";
+                    } else if (err.includes('email')) {
+                        errorMessage = "Email inválido. Por favor, verifique seu cadastro.";
                     } else {
                         // Se ainda for objeto, mostrar mensagem amigável
                         errorMessage = typeof errorData.error === 'string' ? errorData.error : "Erro ao processar pagamento. Verifique os dados e tente novamente.";
                     }
                 }
 
+                // Show full error in development
+                console.error("💬 Error message shown to user:", errorMessage);
                 throw new Error(errorMessage);
             }
 

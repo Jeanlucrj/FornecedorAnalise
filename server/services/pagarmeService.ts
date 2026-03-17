@@ -136,59 +136,65 @@ export class PagarmeService {
         console.log(JSON.stringify(payload, null, 2));
 
         if (paymentMethod === 'pix') {
+            // Ensure amount is at least 100 cents (R$ 1.00)
+            const pixAmount = Math.max(Math.round(amount), 100);
+
             payload.payments.push({
-                paymentMethod: 'pix',
-                amount: Math.round(amount),
+                payment_method: 'pix',  // API uses snake_case
+                amount: pixAmount,
                 pix: {
-                    expiresIn: 3600, // 1 hour
-                    additionalInformation: [
+                    expires_in: 3600,  // API uses snake_case, value in seconds
+                    additional_information: [
                         {
                             name: 'Plano',
-                            value: 'Upgrade FornecedorFlow'
+                            value: metadata?.planName || 'Upgrade FornecedorFlow'
                         }
                     ]
                 },
             });
+
+            console.log('[PIX] Payment amount:', pixAmount, 'cents (R$', (pixAmount / 100).toFixed(2), ')');
         } else if (paymentMethod === 'credit_card' || paymentMethod === 'debit_card') {
             if (!cardToken && !cardData) {
                 throw new Error(`Token ou dados do cartão são obrigatórios para pagamento com ${paymentMethod}`);
             }
 
-            // Build the card payment object - SDK expects camelCase!
+            // Build the card payment object - API expects snake_case
             const cardPayment: any = {
-                paymentMethod: paymentMethod,
                 amount: Math.round(amount),
             };
 
-            // The SDK expects camelCase keys: creditCard, debitCard
+            // Add payment method specific configuration
             if (paymentMethod === 'credit_card') {
-                cardPayment.creditCard = {
+                cardPayment.payment_method = 'credit_card';
+                cardPayment.credit_card = {
                     recurrence: false,
                     installments: 1,
-                    statementDescriptor: 'FornecedorFl',
-                    operationType: 'auth_and_capture',
+                    statement_descriptor: 'FornecedorFl',
+                    operation_type: 'auth_and_capture',
                     card: {
-                        billingAddress: finalAddress
+                        billing_address: finalAddress
                     }
                 };
 
                 if (cardToken) {
-                    cardPayment.creditCard.cardToken = cardToken;
+                    cardPayment.credit_card.card_token = cardToken;
                 } else if (cardData) {
-                    cardPayment.creditCard.card = {
-                        ...cardPayment.creditCard.card,
+                    cardPayment.credit_card.card = {
+                        ...cardPayment.credit_card.card,
                         number: cardData.number,
-                        holderName: cardData.holderName,
-                        expMonth: cardData.expMonth,
-                        expYear: cardData.expYear,
+                        holder_name: cardData.holderName,
+                        exp_month: cardData.expMonth,
+                        exp_year: cardData.expYear,
                         cvv: cardData.cvv,
                     };
                 }
             } else if (paymentMethod === 'debit_card') {
-                cardPayment.debitCard = {
+                cardPayment.payment_method = 'debit_card';
+                cardPayment.debit_card = {
                     recurrence: false,
                     installments: 1,
-                    statementDescriptor: 'FornecedorFl',
+                    statement_descriptor: 'FornecedorFl',
                     billing: {
                         name: finalName,
                         address: finalAddress
@@ -197,15 +203,15 @@ export class PagarmeService {
 
                 // Use cardToken if provided, otherwise use cardData
                 if (cardToken) {
-                    cardPayment.debitCard.cardToken = cardToken;
+                    cardPayment.debit_card.card_token = cardToken;
                 } else if (cardData) {
-                    cardPayment.debitCard.card = {
+                    cardPayment.debit_card.card = {
                         number: cardData.number,
-                        holderName: cardData.holderName,
-                        expMonth: cardData.expMonth,
-                        expYear: cardData.expYear,
+                        holder_name: cardData.holderName,
+                        exp_month: cardData.expMonth,
+                        exp_year: cardData.expYear,
                         cvv: cardData.cvv,
-                        billingAddress: finalAddress
+                        billing_address: finalAddress
                     };
                 }
             }

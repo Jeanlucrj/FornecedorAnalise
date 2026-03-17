@@ -40,7 +40,7 @@ export default function Pricing() {
             icon: Zap,
             color: 'text-green-500',
             bgColor: 'bg-green-500/10',
-            tag: 'Plano de Teste - R$ 1,00',
+            tag: 'Ideal para testes',
             popular: false,
             ...PLANS.free
         },

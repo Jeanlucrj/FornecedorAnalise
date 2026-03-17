@@ -227,12 +227,32 @@ export class PagarmeService {
                 logToFile(`Charge failure details`, result.charges[0].lastTransaction.gatewayResponse);
             }
 
+            // Extra logging for PIX payments
+            if (paymentMethod === 'pix') {
+                console.log('[PAGARME PIX] Order ID:', result.id);
+                console.log('[PAGARME PIX] Order Status:', result.status);
+                console.log('[PAGARME PIX] Charges:', JSON.stringify(result.charges, null, 2));
+
+                const charge = result.charges?.[0];
+                if (charge) {
+                    const lastTx = charge.lastTransaction || (charge as any).last_transaction;
+                    console.log('[PAGARME PIX] Last Transaction:', JSON.stringify(lastTx, null, 2));
+
+                    if (lastTx) {
+                        console.log('[PAGARME PIX] QR Code URL:', lastTx.qrCodeUrl || lastTx.qr_code_url || 'NOT FOUND');
+                        console.log('[PAGARME PIX] QR Code:', lastTx.qrCode || lastTx.qr_code || 'NOT FOUND');
+                    }
+                }
+            }
+
             return result;
         } catch (error: any) {
             console.error("!!! PAGARME ERROR !!!");
             const errorBody = error.response?.data || error;
             logToFile(`API Error`, errorBody);
-            console.error(JSON.stringify(errorBody, null, 2));
+            console.error('[PAGARME ERROR] Full error:', JSON.stringify(errorBody, null, 2));
+            console.error('[PAGARME ERROR] Error message:', error.message);
+            console.error('[PAGARME ERROR] Error stack:', error.stack);
             throw error;
         }
     }

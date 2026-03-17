@@ -585,10 +585,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(order);
     } catch (error: any) {
       console.error("Checkout error:", error);
-      const errorData = error?.response?.data || { message: error.message };
+      console.error("Error response data:", JSON.stringify(error?.response?.data, null, 2));
+
+      const errorData = error?.response?.data || error;
+      let errorMessage = "Erro ao processar pagamento. Verifique os dados e tente novamente.";
+
+      // Extract specific error messages from Pagar.me response
+      if (errorData?.errors) {
+        const pagarmeErrors = Array.isArray(errorData.errors)
+          ? errorData.errors.map((e: any) => e.message || e).join(', ')
+          : errorData.errors;
+        errorMessage = pagarmeErrors;
+      } else if (errorData?.message) {
+        errorMessage = errorData.message;
+      } else if (error.message) {
+        errorMessage = error.message;
+      }
+
       res.status(500).json({
-        message: "Erro interno ao processar pagamento",
+        message: errorMessage,
         error: errorData,
+        debug: {
+          errorType: error.constructor.name,
+          hasResponseData: !!error?.response?.data,
+          fullError: process.env.NODE_ENV === 'development' ? error : undefined
+        }
       });
     }
   });

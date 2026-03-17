@@ -1,0 +1,184 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste PIX - Debug</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #1a1a1a;
+            color: #fff;
+        }
+        .container {
+            background: #2a2a2a;
+            padding: 30px;
+            border-radius: 10px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        #result {
+            margin-top: 20px;
+            padding: 20px;
+            background: #333;
+            border-radius: 5px;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+        }
+        .success { color: #4CAF50; }
+        .error { color: #f44336; }
+        input {
+            padding: 10px;
+            width: 300px;
+            font-size: 14px;
+            border-radius: 5px;
+            border: 1px solid #555;
+            background: #1a1a1a;
+            color: #fff;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔍 Teste de Pagamento PIX</h1>
+        <p>Esta página testa a geração de PIX diretamente, mostrando todos os erros.</p>
+
+        <div style="margin: 20px 0;">
+            <label for="cpf">CPF/CNPJ:</label><br>
+            <input type="text" id="cpf" value="029.663.707-69" placeholder="Digite o CPF/CNPJ">
+        </div>
+
+        <button onclick="testPix()">🚀 Testar PIX (Endpoint de Teste)</button>
+        <button onclick="testCheckout()">💳 Testar Checkout Normal</button>
+
+        <div id="result"></div>
+    </div>
+
+    <script>
+        function showResult(message, isError = false) {
+            const resultDiv = document.getElementById('result');
+            resultDiv.className = isError ? 'error' : 'success';
+            resultDiv.textContent = message;
+        }
+
+        async function testPix() {
+            showResult('🔄 Testando... Aguarde...');
+            try {
+                const cpf = document.getElementById('cpf').value;
+
+                const response = await fetch('/api/test-pix', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ cpf: cpf })
+                });
+
+                const data = await response.json();
+
+                if (data.success) {
+                    showResult(`✅ SUCESSO!
+
+Order ID: ${data.orderId}
+Status: ${data.status}
+Tem QR Code: ${data.hasQrCode ? 'SIM ✅' : 'NÃO ❌'}
+QR Code URL: ${data.qrCodeUrl || 'N/A'}
+QR Code (primeiros 50 chars): ${data.qrCode || 'N/A'}
+
+Resposta completa:
+${JSON.stringify(data.fullResponse, null, 2)}`);
+                } else {
+                    showResult(`❌ ERRO!
+
+Mensagem: ${data.error}
+
+Detalhes:
+${JSON.stringify(data.details, null, 2)}
+
+Stack:
+${data.stack || 'N/A'}`, true);
+                }
+            } catch (error) {
+                showResult(`❌ ERRO DE REDE!
+
+${error.message}
+
+${error.stack || ''}`, true);
+            }
+        }
+
+        async function testCheckout() {
+            showResult('🔄 Testando checkout normal... Aguarde...');
+            try {
+                const cpf = document.getElementById('cpf').value;
+
+                const response = await fetch('/api/checkout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        plan: 'free',
+                        paymentMethod: 'pix',
+                        customer: {
+                            name: 'Teste Debug',
+                            cpf: cpf.replace(/\D/g, ''),
+                            email: 'teste@fornecedorflow.com.br'
+                        }
+                    })
+                });
+
+                const data = await response.json();
+
+                if (response.ok) {
+                    const charge = data.charges?.[0];
+                    const tx = charge?.lastTransaction || charge?.last_transaction;
+
+                    showResult(`✅ CHECKOUT FUNCIONOU!
+
+Order ID: ${data.id}
+Status: ${data.status}
+QR Code URL: ${tx?.qrCodeUrl || tx?.qr_code_url || 'N/A'}
+QR Code: ${tx?.qrCode || tx?.qr_code || 'N/A'}
+
+Resposta completa:
+${JSON.stringify(data, null, 2)}`);
+                } else {
+                    showResult(`❌ CHECKOUT FALHOU!
+
+Status: ${response.status}
+Mensagem: ${data.message || 'Erro desconhecido'}
+
+Erro:
+${JSON.stringify(data.error, null, 2)}
+
+Debug:
+${JSON.stringify(data.debug, null, 2)}
+
+Resposta completa:
+${JSON.stringify(data, null, 2)}`, true);
+                }
+            } catch (error) {
+                showResult(`❌ ERRO DE REDE NO CHECKOUT!
+
+${error.message}
+
+${error.stack || ''}`, true);
+            }
+        }
+
+        // Auto-teste ao carregar (opcional)
+        // window.onload = () => testPix();
+    </script>
+</body>
+</html>

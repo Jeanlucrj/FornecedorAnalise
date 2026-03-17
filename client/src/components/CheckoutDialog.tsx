@@ -8,6 +8,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { CreditCard, QrCode, Landmark, Loader2, CheckCircle2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
+import { useQueryClient } from "@tanstack/react-query";
 import { PLANS } from "@shared/plans";
 
 declare global {
@@ -31,6 +32,7 @@ export default function CheckoutDialog({ open, onOpenChange, planId }: CheckoutD
     const [checkingPayment, setCheckingPayment] = useState(false);
     const { toast } = useToast();
     const { user } = useAuth();
+    const queryClient = useQueryClient();
 
     const plan = PLANS[planId as keyof typeof PLANS];
 
@@ -50,12 +52,16 @@ export default function CheckoutDialog({ open, onOpenChange, planId }: CheckoutD
                     console.log('[PIX-POLLING] Payment confirmed!');
                     setSuccess(true);
                     setPixData(null);
+
+                    // Refetch user data to get updated plan
+                    await queryClient.invalidateQueries({ queryKey: ["/api/auth/user"] });
+
                     toast({
                         title: "Pagamento confirmado!",
-                        description: `Seu plano foi atualizado para ${plan.name}. Recarregue a página para ver as mudanças.`,
+                        description: `Seu plano foi atualizado para ${plan.name}!`,
                     });
 
-                    // Reload page after 3 seconds to show updated plan
+                    // Reload page after 3 seconds to ensure all UI updates
                     setTimeout(() => {
                         window.location.reload();
                     }, 3000);

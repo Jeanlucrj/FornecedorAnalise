@@ -1,6 +1,7 @@
 import { Client, OrdersController } from '@pagarme/pagarme-nodejs-sdk';
 import fs from 'fs';
 
+// Pagar.me Service - Production Keys Required
 const LOG_FILE = 'C:\\Users\\User\\.gemini\\antigravity\\scratch\\FornecedorFlow\\FornecedorFlow\\pagarme_debug.txt';
 
 const logToFile = (message: string, data?: any) => {

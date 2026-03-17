@@ -526,25 +526,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Validate and sanitize customer data
-      const customerEmail = user.email || 'contato@fornecedorflow.com.br';
-      const customerName = (customer?.name || user.firstName || 'Cliente FornecedorFlow').trim();
       const customerCpf = (customer?.cpf || user.document || '').replace(/\D/g, '');
+      const customerName = (customer?.name || user.firstName || 'Cliente FornecedorFlow').trim();
+
+      // Email is required by Pagar.me API, use valid fallback if user email is missing/invalid
+      let customerEmail = user.email || 'cliente@fornecedorflow.com.br';
+      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+      if (!emailRegex.test(customerEmail)) {
+        console.warn('[CHECKOUT] Invalid user email, using fallback:', customerEmail);
+        // Generate unique email for this transaction
+        customerEmail = `cliente${Date.now()}@fornecedorflow.com.br`;
+      }
 
       console.log('[CHECKOUT] Customer data:', {
         email: customerEmail,
         name: customerName,
         cpf: customerCpf,
-        hasUser: !!user
+        hasUser: !!user,
+        paymentMethod
       });
-
-      // Validate email format
-      const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-      if (!emailRegex.test(customerEmail)) {
-        console.error('[CHECKOUT] Invalid email:', customerEmail);
-        return res.status(400).json({
-          message: "Email inválido. Por favor, atualize seu cadastro."
-        });
-      }
 
       const order = await pagarmeService.createOrder({
         amount: planInfo.price * 100, // Pagar.me uses cents

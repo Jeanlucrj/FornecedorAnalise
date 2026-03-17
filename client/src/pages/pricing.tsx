@@ -21,12 +21,8 @@ export default function Pricing() {
         const params = new URLSearchParams(window.location.search);
         const planParam = params.get('plan');
         if (planParam && PLANS[planParam as keyof typeof PLANS]) {
-            if (planParam === 'free') {
-                handleSelectPlan('free');
-            } else {
-                setSelectedPlanId(planParam);
-                setCheckoutOpen(true);
-            }
+            setSelectedPlanId(planParam);
+            setCheckoutOpen(true);
         }
     }, []);
 
@@ -42,9 +38,9 @@ export default function Pricing() {
         {
             id: 'free',
             icon: Zap,
-            color: 'text-muted-foreground',
-            bgColor: 'bg-muted/10',
-            tag: 'Ideal para testes',
+            color: 'text-green-500',
+            bgColor: 'bg-green-500/10',
+            tag: 'Plano de Teste - R$ 1,00',
             popular: false,
             ...PLANS.free
         },
@@ -78,39 +74,7 @@ export default function Pricing() {
     ];
 
     const handleSelectPlan = async (planId: string) => {
-        if (planId === 'free') {
-            try {
-                const response = await fetch('/api/upgrade', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ plan: 'free' })
-                });
-
-                if (response.ok) {
-                    toast({
-                        title: "Plano ativado!",
-                        description: "Você já pode começar a usar o ValidaFornecedor.",
-                    });
-                    setLocation('/');
-                } else {
-                    const data = await response.json();
-                    toast({
-                        variant: "destructive",
-                        title: "Erro ao ativar plano",
-                        description: data.message || "Ocorreu um erro inesperado.",
-                    });
-                }
-            } catch (error) {
-                console.error("Error activating free plan:", error);
-                toast({
-                    variant: "destructive",
-                    title: "Erro de conexão",
-                    description: "Não foi possível conectar ao servidor.",
-                });
-            }
-            return;
-        }
-
+        // Agora todos os planos exigem pagamento, inclusive o "Teste" (R$ 1,00)
         setSelectedPlanId(planId);
         setCheckoutOpen(true);
     };

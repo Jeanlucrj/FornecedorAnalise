@@ -63,8 +63,14 @@ export class PagarmeService {
             expYear: number;
             cvv: string;
         };
+        metadata?: {
+            userId?: string;
+            plan?: string;
+            planName?: string;
+            [key: string]: any;
+        };
     }) {
-        const { amount, paymentMethod, customer, cardToken, cardData } = params;
+        const { amount, paymentMethod, customer, cardToken, cardData, metadata } = params;
 
         const cleanCpf = customer.cpf?.replace(/\D/g, '') || '';
         const customerType = cleanCpf.length > 11 ? 'corporation' : 'individual';
@@ -122,6 +128,7 @@ export class PagarmeService {
                 metadata: {},
             },
             payments: [],
+            metadata: metadata || {},
         };
 
         console.log("!!! PAGARME REQUEST START !!!");

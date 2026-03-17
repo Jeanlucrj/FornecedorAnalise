@@ -1,12 +1,13 @@
 export const PLANS = {
     free: {
-        name: "Gratuito",
-        price: 0,
+        name: "Teste",
+        price: 1,
         limit: 10,
         features: [
             "10 validações/mês",
             "Relatórios básicos",
-            "Suporte por email"
+            "Suporte por email",
+            "Plano de teste - R$ 1,00"
         ]
     },
     basic: {

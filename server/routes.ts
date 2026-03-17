@@ -540,6 +540,11 @@ export async function registerRoutes(app: Express): Promise<Server> {
         },
         cardToken,
         cardData,
+        metadata: {
+          userId: userId,
+          plan: plan,
+          planName: planInfo.name,
+        }
       });
 
       // Check if order has failed status and return error details
@@ -558,8 +563,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
       }
 
-      // Update user plan if payment was successful (paid or pending for PIX)
-      if (order.status === 'paid' || (paymentMethod === 'pix' && order.status === 'pending')) {
+      // Update user plan ONLY if payment was successful (paid)
+      // For PIX, wait for webhook confirmation before upgrading
+      if (order.status === 'paid') {
         console.log(`[CHECKOUT] Payment successful! Updating user ${userId} to plan ${plan}`);
 
         await storage.updateUser(userId, {
@@ -570,6 +576,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
 
         console.log(`[CHECKOUT] User ${userId} plan updated to ${plan}`);
+      } else if (paymentMethod === 'pix' && order.status === 'pending') {
+        console.log(`[CHECKOUT] PIX payment pending. Waiting for webhook confirmation for order ${order.id}`);
+        // Store the pending order for later webhook processing
+        // You could create a pending_payments table to track these
       }
 
       res.json(order);
@@ -591,6 +601,72 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(order);
     } catch (error: any) {
       res.status(500).json({ message: "Erro ao buscar status do pedido" });
+    }
+  });
+
+  // Pagar.me Webhook endpoint for payment confirmations
+  app.post("/api/webhooks/pagarme", async (req: any, res) => {
+    try {
+      const event = req.body;
+      console.log('[WEBHOOK] Received Pagar.me webhook:', JSON.stringify(event, null, 2));
+
+      // Validate webhook authenticity (you should verify signature in production)
+      if (!event || !event.type) {
+        return res.status(400).json({ message: "Invalid webhook payload" });
+      }
+
+      // Handle order paid event
+      if (event.type === 'order.paid' || event.type === 'charge.paid') {
+        const order = event.data;
+        const orderId = order.id;
+        const orderCode = order.code;
+        const metadata = order.metadata || {};
+
+        console.log(`[WEBHOOK] Payment confirmed for order ${orderId} (${orderCode})`);
+        console.log(`[WEBHOOK] Metadata:`, JSON.stringify(metadata, null, 2));
+
+        // Extract userId and plan from metadata
+        const userId = metadata.userId;
+        const plan = metadata.plan;
+
+        if (userId && plan) {
+          try {
+            const planInfo = PLANS[plan as keyof typeof PLANS];
+            if (planInfo) {
+              await storage.updateUser(userId, {
+                plan: plan as any,
+                apiLimit: planInfo.limit,
+                apiUsage: 0,
+                planUpdatedAt: new Date()
+              });
+
+              console.log(`[WEBHOOK] User ${userId} plan upgraded to ${plan} via PIX payment`);
+
+              // Log success in activity logs
+              await db.insert(activityLogs).values({
+                userId,
+                action: 'plan_upgrade_pix',
+                resource: 'payment',
+                resourceId: orderId,
+                details: { plan, orderId, orderCode }
+              });
+            }
+          } catch (error) {
+            console.error(`[WEBHOOK] Error upgrading user plan:`, error);
+            return res.status(500).json({ message: "Failed to upgrade plan" });
+          }
+        } else {
+          console.log(`[WEBHOOK] Missing userId or plan in metadata`);
+        }
+
+        res.status(200).json({ message: "Webhook processed" });
+      } else {
+        console.log(`[WEBHOOK] Ignoring event type: ${event.type}`);
+        res.status(200).json({ message: "Event ignored" });
+      }
+    } catch (error: any) {
+      console.error("[WEBHOOK] Error processing webhook:", error);
+      res.status(500).json({ message: "Webhook processing failed" });
     }
   });
 

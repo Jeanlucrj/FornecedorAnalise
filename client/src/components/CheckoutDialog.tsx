@@ -209,11 +209,15 @@ export default function CheckoutDialog({ open, onOpenChange, planId }: CheckoutD
                                 <Button variant="outline" size="sm" onClick={copyPix}>Copiar</Button>
                             </div>
                         </div>
-                        <div className="text-sm text-center text-muted-foreground">
-                            <p>Abra o app do seu banco e escaneie o código acima.</p>
-                            <p>O plano será liberado assim que o pagamento for confirmado.</p>
+                        <div className="text-sm text-center text-muted-foreground space-y-2">
+                            <p className="font-semibold">Abra o app do seu banco e escaneie o código acima.</p>
+                            <p>⏱️ O QR Code expira em 1 hora</p>
+                            <p className="text-primary font-medium">✅ O plano será liberado automaticamente após a confirmação do pagamento.</p>
                         </div>
-                        <Button variant="ghost" onClick={() => setPixData(null)}>Voltar</Button>
+                        <div className="flex space-x-2 w-full">
+                            <Button variant="ghost" className="flex-1" onClick={() => setPixData(null)}>Voltar</Button>
+                            <Button variant="outline" className="flex-1" onClick={() => onOpenChange(false)}>Fechar</Button>
+                        </div>
                     </div>
                 ) : (
                     <form onSubmit={(e) => { e.preventDefault(); handlePayment(); }} autoComplete="on">

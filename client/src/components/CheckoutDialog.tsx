@@ -58,6 +58,7 @@ export default function CheckoutDialog({ open, onOpenChange, planId }: CheckoutD
 
     const handlePayment = async () => {
         setLoading(true);
+        console.log('🚀 [CHECKOUT] Starting payment:', { method: paymentMethod, cpf: cardData.cpf, user: user?.email });
         try {
             let cardPayload: any = {};
 
@@ -65,6 +66,7 @@ export default function CheckoutDialog({ open, onOpenChange, planId }: CheckoutD
                 if (!cardData.cpf) {
                     throw new Error("O CPF ou CNPJ é obrigatório para gerar o PIX.");
                 }
+                console.log('✅ [PIX] CPF validated:', cardData.cpf);
             } else if (paymentMethod === "credit_card" || paymentMethod === "debit_card") {
                 // Simple validation
                 if (!cardData.number || !cardData.cvv || !cardData.expiry || !cardData.name || !cardData.cpf) {
@@ -124,11 +126,9 @@ export default function CheckoutDialog({ open, onOpenChange, planId }: CheckoutD
                         errorMessage = "Saldo insuficiente no cartão.";
                     } else if (err.includes('not a valid card number')) {
                         errorMessage = "Número de cartão inválido. Verifique os dados do cartão.";
-                    } else if (err.includes('email')) {
-                        errorMessage = "Email inválido. Por favor, verifique seu cadastro.";
                     } else {
-                        // Se ainda for objeto, mostrar mensagem amigável
-                        errorMessage = typeof errorData.error === 'string' ? errorData.error : "Erro ao processar pagamento. Verifique os dados e tente novamente.";
+                        // Use server error message directly
+                        errorMessage = typeof errorData.error === 'string' ? errorData.error : (errorData.message || "Erro ao processar pagamento. Verifique os dados e tente novamente.");
                     }
                 }
 

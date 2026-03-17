@@ -647,6 +647,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // TEST ENDPOINT - Create PIX payment for debugging
+  app.post("/api/test-pix", isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = req.session.userId;
+      const user = await storage.getUser(userId);
+
+      console.log('[TEST-PIX] User:', { id: userId, email: user?.email, firstName: user?.firstName });
+
+      const order = await pagarmeService.createOrder({
+        amount: 100, // R$ 1.00
+        paymentMethod: 'pix',
+        customer: {
+          name: user?.firstName || 'Teste',
+          email: user?.email || `teste${Date.now()}@fornecedorflow.com.br`,
+          cpf: req.body.cpf || '02966370769',
+        },
+        metadata: {
+          userId: userId.toString(),
+          plan: 'free',
+          planName: 'Teste',
+          test: 'true'
+        }
+      });
+
+      console.log('[TEST-PIX] Order created:', order.id);
+      const charge = order.charges?.[0] as any;
+      const tx = charge?.lastTransaction as any;
+
+      res.json({
+        success: true,
+        orderId: order.id,
+        status: order.status,
+        hasQrCode: !!(tx?.qrCode || tx?.qrCodeUrl),
+        qrCodeUrl: tx?.qrCodeUrl,
+        qrCode: tx?.qrCode ? tx.qrCode.substring(0, 50) + '...' : null,
+        fullResponse: order
+      });
+    } catch (error: any) {
+      console.error('[TEST-PIX] Error:', error);
+      console.error('[TEST-PIX] Error data:', JSON.stringify(error?.response?.data, null, 2));
+      res.status(500).json({
+        success: false,
+        error: error.message,
+        details: error?.response?.data || error,
+        stack: error.stack
+      });
+    }
+  });
+
   // Pagar.me Webhook endpoint for payment confirmations
   app.post("/api/webhooks/pagarme", async (req: any, res) => {
     try {

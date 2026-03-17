@@ -38,7 +38,7 @@ export default function CheckoutDialog({ open, onOpenChange, planId }: CheckoutD
 
     // Poll order status for PIX payments
     useEffect(() => {
-        if (!orderId || !pixData || success) return;
+        if (!orderId || !pixData || success || !plan) return;
 
         const checkOrderStatus = async () => {
             try {
@@ -58,7 +58,7 @@ export default function CheckoutDialog({ open, onOpenChange, planId }: CheckoutD
 
                     toast({
                         title: "Pagamento confirmado!",
-                        description: `Seu plano foi atualizado para ${plan.name}!`,
+                        description: `Seu plano foi atualizado para ${plan?.name || 'seu novo plano'}!`,
                     });
 
                     // Reload page after 3 seconds to ensure all UI updates
@@ -88,7 +88,7 @@ export default function CheckoutDialog({ open, onOpenChange, planId }: CheckoutD
             clearInterval(interval);
             clearTimeout(timeout);
         };
-    }, [orderId, pixData, success, plan.name, toast, queryClient]);
+    }, [orderId, pixData, success, plan, toast, queryClient]);
 
     const [cardData, setCardData] = useState({
         number: "",
@@ -222,7 +222,7 @@ export default function CheckoutDialog({ open, onOpenChange, planId }: CheckoutD
                 if (data.status === 'paid') {
                     toast({
                         title: "Pagamento realizado com sucesso!",
-                        description: `Seu plano foi atualizado para ${plan.name}.`,
+                        description: `Seu plano foi atualizado para ${plan?.name || 'seu novo plano'}.`,
                     });
                     setTimeout(() => onOpenChange(false), 3000);
                 }

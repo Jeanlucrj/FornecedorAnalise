@@ -28,10 +28,61 @@ export default function CheckoutDialog({ open, onOpenChange, planId }: CheckoutD
     const [pixData, setPixData] = useState<{ qr_code_url: string; qr_code: string } | null>(null);
     const [orderId, setOrderId] = useState<string | null>(null);
     const [success, setSuccess] = useState(false);
+    const [checkingPayment, setCheckingPayment] = useState(false);
     const { toast } = useToast();
     const { user } = useAuth();
 
     const plan = PLANS[planId as keyof typeof PLANS];
+
+    // Poll order status for PIX payments
+    useEffect(() => {
+        if (!orderId || !pixData || success) return;
+
+        const checkOrderStatus = async () => {
+            try {
+                setCheckingPayment(true);
+                const response = await fetch(`/api/checkout/order/${orderId}`);
+                const order = await response.json();
+
+                console.log('[PIX-POLLING] Order status:', order.status);
+
+                if (order.status === 'paid') {
+                    console.log('[PIX-POLLING] Payment confirmed!');
+                    setSuccess(true);
+                    setPixData(null);
+                    toast({
+                        title: "Pagamento confirmado!",
+                        description: `Seu plano foi atualizado para ${plan.name}. Recarregue a página para ver as mudanças.`,
+                    });
+
+                    // Reload page after 3 seconds to show updated plan
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 3000);
+                }
+            } catch (error) {
+                console.error('[PIX-POLLING] Error checking status:', error);
+            } finally {
+                setCheckingPayment(false);
+            }
+        };
+
+        // Check immediately
+        checkOrderStatus();
+
+        // Then check every 5 seconds
+        const interval = setInterval(checkOrderStatus, 5000);
+
+        // Stop after 10 minutes (PIX expires in 1 hour, but we stop checking after 10 min)
+        const timeout = setTimeout(() => {
+            clearInterval(interval);
+        }, 10 * 60 * 1000);
+
+        return () => {
+            clearInterval(interval);
+            clearTimeout(timeout);
+        };
+    }, [orderId, pixData, success, plan.name, toast]);
 
     const [cardData, setCardData] = useState({
         number: "",
@@ -223,7 +274,11 @@ export default function CheckoutDialog({ open, onOpenChange, planId }: CheckoutD
                         <div className="text-sm text-center text-muted-foreground space-y-2">
                             <p className="font-semibold">Abra o app do seu banco e escaneie o código acima.</p>
                             <p>⏱️ O QR Code expira em 1 hora</p>
-                            <p className="text-primary font-medium">✅ O plano será liberado automaticamente após a confirmação do pagamento.</p>
+                            {checkingPayment ? (
+                                <p className="text-blue-500 font-medium animate-pulse">🔄 Verificando pagamento...</p>
+                            ) : (
+                                <p className="text-primary font-medium">✅ O plano será liberado automaticamente após a confirmação do pagamento.</p>
+                            )}
                         </div>
                         <div className="flex space-x-2 w-full">
                             <Button variant="ghost" className="flex-1" onClick={() => setPixData(null)}>Voltar</Button>

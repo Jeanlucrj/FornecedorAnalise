@@ -636,13 +636,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get Order Status
+  // Get Order Status and update user plan if paid
   app.get("/api/checkout/order/:id", isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
+      const userId = req.session.userId;
+
       const order = await pagarmeService.getOrder(id);
+
+      // If order is paid and user plan not updated yet, update it
+      if (order.status === 'paid' && order.metadata) {
+        const metadata = order.metadata as any;
+        const plan = metadata.plan;
+
+        if (plan && userId) {
+          const user = await storage.getUser(userId);
+          const planInfo = PLANS[plan as keyof typeof PLANS];
+
+          // Only update if plan is different (avoid duplicate updates)
+          if (user && user.plan !== plan && planInfo) {
+            console.log(`[ORDER-STATUS] Updating user ${userId} to plan ${plan} after PIX payment`);
+
+            await storage.updateUser(userId, {
+              plan: plan as any,
+              apiLimit: planInfo.limit,
+              apiUsage: 0,
+              planUpdatedAt: new Date()
+            });
+
+            console.log(`[ORDER-STATUS] User plan updated successfully`);
+          }
+        }
+      }
+
       res.json(order);
     } catch (error: any) {
+      console.error('[ORDER-STATUS] Error:', error);
       res.status(500).json({ message: "Erro ao buscar status do pedido" });
     }
   });
